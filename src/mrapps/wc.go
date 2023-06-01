@@ -11,7 +11,7 @@ import "unicode"
 import "strings"
 import "strconv"
 
-// The map function is called once for each file of input. The first
+// Map The map function is called once for each file of input. The first
 // argument is the name of the input file, and the second is the
 // file's complete contents. You should ignore the input file name,
 // and look only at the contents argument. The return value is a slice

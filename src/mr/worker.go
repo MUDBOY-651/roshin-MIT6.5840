@@ -5,8 +5,7 @@ import "log"
 import "net/rpc"
 import "hash/fnv"
 
-
-//
+// KeyValue
 // Map functions return a slice of KeyValue.
 //
 type KeyValue struct {
@@ -20,12 +19,13 @@ type KeyValue struct {
 //
 func ihash(key string) int {
 	h := fnv.New32a()
-	h.Write([]byte(key))
+	if _, err := h.Write([]byte(key)); err != nil {
+		return 0
+	}
 	return int(h.Sum32() & 0x7fffffff)
 }
 
-
-//
+// Worker
 // main/mrworker.go calls this function.
 //
 func Worker(mapf func(string, string) []KeyValue,
@@ -34,25 +34,23 @@ func Worker(mapf func(string, string) []KeyValue,
 	// Your worker implementation here.
 
 	// uncomment to send the Example RPC to the coordinator.
-	// CallExample()
+	Call()
 
 }
 
-//
+// Call
 // example function to show how to make an RPC call to the coordinator.
-//
 // the RPC argument and reply types are defined in rpc.go.
-//
-func CallExample() {
+func Call() {
 
 	// declare an argument structure.
-	args := ExampleArgs{}
+	args := Args{}
 
 	// fill in the argument(s).
 	args.X = 99
 
 	// declare a reply structure.
-	reply := ExampleReply{}
+	reply := Reply{}
 
 	// send the RPC request, wait for the reply.
 	// the "Coordinator.Example" tells the
@@ -79,7 +77,10 @@ func call(rpcname string, args interface{}, reply interface{}) bool {
 	if err != nil {
 		log.Fatal("dialing:", err)
 	}
-	defer c.Close()
+	defer func(c *rpc.Client) {
+		if err := c.Close(); err != nil {
+		}
+	}(c)
 
 	err = c.Call(rpcname, args, reply)
 	if err == nil {
