@@ -14,15 +14,25 @@ import "strconv"
 // and reply for an RPC.
 //
 
+type InfoArgs struct {
+	numWorker int
+}
+
+type InfoReply struct {
+	numReducer int
+}
+
 type Args struct {
-	X int
+	workerId int
+	taskType string
 }
 
 type Reply struct {
-	Y int
+	task     Task
+	workerId int
+	fileName string
+	rspType  int // 0 Map 1 Reduce 2 ?
 }
-
-// Add your RPC definitions here.
 
 // Cook up a unique-ish UNIX-domain socket name
 // in /var/tmp, for the coordinator.
