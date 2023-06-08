@@ -19,7 +19,25 @@ type InfoArgs struct {
 }
 
 type InfoReply struct {
-	numReducer int
+	numMapTask    int
+	numReduceTask int
+}
+
+type ReportArgs struct {
+	reduceIsEnd bool
+}
+
+type ReportReply struct {
+	keepWorking bool
+}
+
+type FinishArgs struct {
+	taskId   int
+	workerId int
+}
+
+type FinishReply struct {
+	OK bool
 }
 
 type Args struct {
@@ -28,10 +46,7 @@ type Args struct {
 }
 
 type Reply struct {
-	task     Task
-	workerId int
-	fileName string
-	rspType  int // 0 Map 1 Reduce 2 ?
+	task Task
 }
 
 // Cook up a unique-ish UNIX-domain socket name
