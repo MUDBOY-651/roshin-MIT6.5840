@@ -1,6 +1,7 @@
 package mr
 
 import (
+	"container/list"
 	"log"
 	"sync"
 )
@@ -28,17 +29,17 @@ var NULL void
 
 type Coordinator struct {
 	// mapTask != numWorker
-	mapTask        []Task
-	reduceTask     []Task
-	mapTaskSet     map[int]void
-	reduceTaskSet  map[int]void
-	numWorker      int
-	numReduceTask  int
-	numMapTask     int
-	numDoneMapTask int
-	getTaskLock    sync.Mutex
-	doneTaskLock   sync.Mutex
-	Over           bool
+	mapTask           []Task
+	reduceTask        []Task
+	mapTaskList       *list.List
+	reduceTaskList    *list.List
+	numWorker         int
+	numReduceTask     int
+	numMapTask        int
+	numDoneMapTask    int
+	numDoneReduceTask int
+	taskLock          sync.Mutex
+	Over              bool
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -48,9 +49,25 @@ type Coordinator struct {
 //
 // the RPC argument and reply types are defined in rpc.go.
 func (c *Coordinator) taskHandler(args *Args, reply *Reply) error {
-	c.getTaskLock.Lock()
+	c.taskLock.Lock()
+	defer c.taskLock.Unlock()
+
+	if (args.taskType == "map" && c.mapTaskList.Len() == 0) ||
+		(args.taskType == "reduce" && c.reduceTaskList.Len() == 0) {
+		reply.gotTask = false
+		return nil
+	}
+	if args.taskType == "map" {
+		taskId, _ := c.mapTaskList.Back().Value.(int)
+		c.mapTaskList.Remove(c.mapTaskList.Back())
+		reply.task = c.mapTask[taskId]
+	} else {
+		taskId, _ := c.reduceTaskList.Back().Value.(int)
+		c.reduceTaskList.Remove(c.reduceTaskList.Back())
+		reply.task = c.reduceTask[taskId]
+	}
 	// Need Implementation
-	c.getTaskLock.Unlock()
+	reply.gotTask = true
 	return nil
 }
 
@@ -64,14 +81,42 @@ func (c *Coordinator) infoHandler(args *InfoArgs, reply *InfoReply) error {
 func (c *Coordinator) reportHandler(args *ReportArgs, reply *ReportReply) error {
 	if args.reduceIsEnd == true {
 		c.Over = true
-	} else if c.numDoneMapTask != c.numMapTask {
+	} else if args.taskType == "map" && c.numDoneMapTask != c.numMapTask {
+		reply.keepWorking = true
+	} else if args.taskType == "reduce" && c.numDoneReduceTask != c.numReduceTask {
 		reply.keepWorking = true
 	}
 	return nil
 }
 
 func (c *Coordinator) finishHandler(args *FinishArgs, reply *FinishReply) error {
+	c.taskLock.Lock()
+	defer c.taskLock.Unlock()
+	var task Task
+	if args.taskType == "map" {
+		task = c.mapTask[args.taskId]
+	} else {
+		task = c.reduceTask[args.taskId]
+	}
+	if args.taskDone == false {
+		task.taskState = Idle
+		reply.OK = true
+		if args.taskType == "map" {
+			c.mapTaskList.PushBack(task.taskId)
+		} else {
+			c.reduceTaskList.PushBack(task.taskId)
+		}
+		return nil
+	}
+	if args.taskType == "map" {
+		c.numDoneMapTask++
+	} else {
+		c.numReduceTask++
+	}
 	// Need Implementation
+	reply.OK = true
+	task.taskState = Completed
+	return nil
 }
 
 // start a thread that listens for RPCs from worker.go
@@ -105,13 +150,12 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c.numReduceTask = nReduce
 	for id, fileName := range files {
 		c.mapTask = append(c.mapTask, Task{fileName, Idle, -1, id})
-		c.mapTaskSet[id] = NULL
+		c.mapTaskList.PushBack(id)
 	}
 	for i := 0; i < nReduce; i++ {
-		c.reduceTaskSet[i] = NULL
+		c.reduceTaskList.PushBack(i)
 	}
 	c.numMapTask = len(c.mapTask)
-	// Your code here.
 
 	c.server()
 	return &c

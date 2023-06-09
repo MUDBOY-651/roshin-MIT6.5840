@@ -3,8 +3,9 @@ package mr
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
+	"sort"
 	"sync"
 )
 import "log"
@@ -19,6 +20,14 @@ type KeyValue struct {
 	Key   string
 	Value string
 }
+
+// for sorting by key.
+type Keys []KeyValue
+
+// for sorting by key.
+func (a Keys) Len() int           { return len(a) }
+func (a Keys) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a Keys) Less(i, j int) bool { return a[i].Key < a[j].Key }
 
 // use ihash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
@@ -42,12 +51,13 @@ tips:
 
 var Wg sync.WaitGroup
 
+// Node instance represents a worker
 type Node struct {
 	workerId      int
 	numReduceTask int
 	taskId        int // -1 means Idle
-	Map           func(string, string) []KeyValue
-	Reduce        func(string, []string) string
+	Map           *func(string, string) []KeyValue
+	Reduce        *func(string, []string) string
 }
 
 // Call
@@ -73,14 +83,21 @@ func (node *Node) Call(taskType string) Reply {
 func (node *Node) mapFunc() bool {
 	id := node.workerId
 	reply := node.Call("map")
+	if reply.gotTask == false {
+		return false
+	}
 	// 应该是一个浅拷贝
 	task := reply.task
+	node.taskId = task.taskId
+	defer func() {
+		node.taskId = -1
+	}()
 	f, err := os.Open(task.fileName)
 	if err != nil {
 		log.Fatalf("cannot open %v", task.fileName)
 		return false
 	}
-	content, err := ioutil.ReadAll(f)
+	content, err := io.ReadAll(f)
 	if err != nil {
 		log.Fatalf("cannot read %v", task.fileName)
 		return false
@@ -89,7 +106,6 @@ func (node *Node) mapFunc() bool {
 		log.Fatalf("Close %v FAILED !", task.fileName)
 		return false
 	}
-
 	task.taskState = InProgress
 	var encoderList []*json.Encoder
 	for i := 0; i < node.numReduceTask; i++ {
@@ -97,37 +113,83 @@ func (node *Node) mapFunc() bool {
 		f, _ := os.Create(tempFileName)
 		encoderList = append(encoderList, json.NewEncoder(f))
 	}
-	res := node.Map(task.fileName, string(content))
+	res := (*node.Map)(task.fileName, string(content))
 	for _, kv := range res {
 		index := ihash(kv.Key)
 		if err := encoderList[index].Encode(&kv); err != nil {
+			FinishCall(task.taskId, node.workerId, false, "map")
 			log.Fatalf("cannot encode %v workerId=%v kv={%v}", task.fileName, id, kv)
+			return false
 		}
 	}
 
 	// 发送一个 RPC 请求，告知 master 这个任务已完成
-	FinishCall(task.taskId, node.workerId)
+	for reply := FinishCall(task.taskId, node.workerId, true, "map"); reply.OK == false; {
+	}
 	Wg.Done()
 	return true
 }
 
 func (node *Node) reduceFunc() bool {
-	// Need Implementation
+	// ADD A RPC
+	reply := node.Call("reduce")
+	if reply.gotTask == false {
+		return false
+	}
+	id := node.workerId
+	intermediate := []KeyValue{}
+	// 处理一列
+	for i := 0; i < numWorker; i++ {
+		tempFileName := fmt.Sprintf("mr-%v-%v", i, id)
+		f, _ := os.Open(tempFileName)
+		dec := json.NewDecoder(f)
+		for {
+			var kv KeyValue
+			if err := dec.Decode(&kv); err != nil {
+				break
+			}
+			intermediate = append(intermediate, kv)
+		}
+		f.Close()
+	}
+	sort.Sort(Keys(intermediate))
+	outputFileName := fmt.Sprintf("mr-out-%d", id)
+	ofile, _ := os.Create(outputFileName)
 
+	// Need Implementation
+	// 合并相同 key
+	i := 0
+	for i < len(intermediate) {
+		j := i + 1
+		for j < len(intermediate) && intermediate[j].Key == intermediate[i].Key {
+			j++
+		}
+		values := []string{}
+		for k := i; k < j; k++ {
+			values = append(values, intermediate[k].Value)
+		}
+		output := (*node.Reduce)(intermediate[i].Key, values)
+
+		// this is the correct format for each line of Reduce output.
+		fmt.Fprintf(ofile, "%v %v\n", intermediate[i].Key, output)
+
+		i = j
+	}
+	// Need Implementation
 	Wg.Done()
 	return true
 }
 
 func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
-	// uncomment to send the Example RPC to the coordinator.
 	reply := InfoCall(numWorker)
-	workers := [numWorker]*Node{new(Node)}
+	workers := [numWorker]*Node{}
 	for id, node := range workers {
 		node.taskId = -1
 		node.workerId = id
-		node.Map = mapf
-		node.Reduce = reducef
+		node.numReduceTask = reply.numReduceTask
+		node.Map = &mapf
+		node.Reduce = &reducef
 	}
 	numReduceTask, numMapTask := reply.numReduceTask, reply.numMapTask
 	const (
@@ -135,8 +197,9 @@ func Worker(mapf func(string, string) []KeyValue,
 		askEnd  bool = true
 	)
 	Wg.Add(numMapTask)
-	for reply := ReportCall(askWork); reply.keepWorking == true; {
+	for reply := ReportCall(askWork, "map"); reply.keepWorking == true; {
 		for i := 0; i < numWorker; i++ {
+			// taskId == -1 means the worker is Idle
 			if workers[i].taskId == -1 {
 				go workers[i].mapFunc()
 			}
@@ -145,7 +208,7 @@ func Worker(mapf func(string, string) []KeyValue,
 	Wg.Wait()
 	// map finished
 	Wg.Add(numReduceTask)
-	for reply := ReportCall(askWork); reply.keepWorking == true; {
+	for reply := ReportCall(askWork, "reduce"); reply.keepWorking == true; {
 		for i := 0; i < numWorker; i++ {
 			if workers[i].taskId == -1 {
 				go workers[i].reduceFunc()
@@ -153,7 +216,7 @@ func Worker(mapf func(string, string) []KeyValue,
 		}
 	}
 	Wg.Wait()
-	ReportCall(askEnd)
+	ReportCall(askEnd, "")
 }
 
 func InfoCall(numWorker int) InfoReply {
@@ -167,10 +230,9 @@ func InfoCall(numWorker int) InfoReply {
 	return reply
 }
 
-func ReportCall(askEnd bool) ReportReply {
-	args := ReportArgs{}
+func ReportCall(askEnd bool, taskType string) ReportReply {
+	args := ReportArgs{askEnd, taskType}
 	reply := ReportReply{}
-	args.reduceIsEnd = askEnd
 	ok := call("Coordinator.reportHandler", &args, &reply)
 	if ok == false {
 		fmt.Printf("ReportCall failed!\n")
@@ -178,11 +240,14 @@ func ReportCall(askEnd bool) ReportReply {
 	return reply
 }
 
-func FinishCall(taskId int, workerId int) ReportReply {
+func FinishCall(taskId int, workerId int, taskDone bool, taskType string) FinishReply {
 	// Need Implementation
-	args := FinishArgs{taskId, workerId}
-	reply := ReportReply{}
-
+	args := FinishArgs{taskId, workerId, taskDone, taskType}
+	reply := FinishReply{}
+	ok := call("Coordinator.finishHandler", &args, &reply)
+	if ok == false {
+		fmt.Printf("FinishCall failed!\n")
+	}
 	return reply
 }
 
