@@ -51,11 +51,13 @@ then
   TIMEOUT+=" -k 2s 45s "
 fi
 
+
 # run the test in a fresh sub-directory.
 rm -rf mr-tmp
 mkdir mr-tmp || exit 1
 cd mr-tmp || exit 1
 rm -f mr-*
+
 
 # make sure software is freshly built.
 (cd ../../mrapps && go clean)
@@ -73,6 +75,7 @@ rm -f mr-*
 (cd .. && go build $RACE mrsequential.go) || exit 1
 
 failed_any=0
+
 
 #########################################################
 # first word-count
@@ -140,6 +143,8 @@ else
   echo '---' indexer test: FAIL
   failed_any=1
 fi
+
+exit
 
 wait
 

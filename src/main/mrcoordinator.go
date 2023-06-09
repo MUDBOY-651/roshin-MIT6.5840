@@ -16,7 +16,10 @@ import "fmt"
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Fprintf(os.Stderr, "Usage: mrcoordinator inputfiles...\n")
+		_, err := fmt.Fprintf(os.Stderr, "Usage: mrcoordinator inputfiles...\n")
+		if err != nil {
+			return
+		}
 		os.Exit(1)
 	}
 

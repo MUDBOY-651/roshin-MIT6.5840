@@ -15,28 +15,28 @@ import "strconv"
 //
 
 type InfoArgs struct {
-	numWorker int
+	NumWorker int
 }
 
 type InfoReply struct {
-	numMapTask    int
-	numReduceTask int
+	NumMapTask    int
+	NumReduceTask int
 }
 
 type ReportArgs struct {
-	reduceIsEnd bool
-	taskType    string
+	ReduceIsEnd bool
+	TaskType    string
 }
 
 type ReportReply struct {
-	keepWorking bool
+	KeepWorking bool
 }
 
 type FinishArgs struct {
-	taskId   int
-	workerId int
-	taskDone bool
-	taskType string
+	TaskId   int
+	WorkerId int
+	TaskDone bool
+	TaskType string
 }
 
 type FinishReply struct {
@@ -44,13 +44,13 @@ type FinishReply struct {
 }
 
 type Args struct {
-	workerId int
-	taskType string
+	WorkerId int
+	TaskType string
 }
 
 type Reply struct {
-	gotTask bool
-	task    Task
+	GotTask bool
+	Task    Task
 }
 
 // Cook up a unique-ish UNIX-domain socket name

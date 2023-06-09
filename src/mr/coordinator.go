@@ -17,15 +17,11 @@ const (
 )
 
 type Task struct {
-	fileName  string
-	taskState int8
-	workerId  int
-	taskId    int
+	FileName  string
+	TaskState int8
+	WorkerId  int
+	TaskId    int
 }
-
-type void struct{}
-
-var NULL void
 
 type Coordinator struct {
 	// mapTask != numWorker
@@ -42,80 +38,74 @@ type Coordinator struct {
 	Over              bool
 }
 
-// Your code here -- RPC handlers for the worker to call.
-
-// Handle Example
-// an example RPC handler.
-//
-// the RPC argument and reply types are defined in rpc.go.
-func (c *Coordinator) taskHandler(args *Args, reply *Reply) error {
+func (c *Coordinator) TaskHandler(args *Args, reply *Reply) error {
 	c.taskLock.Lock()
 	defer c.taskLock.Unlock()
 
-	if (args.taskType == "map" && c.mapTaskList.Len() == 0) ||
-		(args.taskType == "reduce" && c.reduceTaskList.Len() == 0) {
-		reply.gotTask = false
+	if (args.TaskType == "map" && c.mapTaskList.Len() == 0) ||
+		(args.TaskType == "reduce" && c.reduceTaskList.Len() == 0) {
+		reply.GotTask = false
 		return nil
 	}
-	if args.taskType == "map" {
+	if args.TaskType == "map" {
 		taskId, _ := c.mapTaskList.Back().Value.(int)
 		c.mapTaskList.Remove(c.mapTaskList.Back())
-		reply.task = c.mapTask[taskId]
+		reply.Task = c.mapTask[taskId]
 	} else {
 		taskId, _ := c.reduceTaskList.Back().Value.(int)
 		c.reduceTaskList.Remove(c.reduceTaskList.Back())
-		reply.task = c.reduceTask[taskId]
+		reply.Task = c.reduceTask[taskId]
 	}
 	// Need Implementation
-	reply.gotTask = true
+	reply.GotTask = true
 	return nil
 }
 
-func (c *Coordinator) infoHandler(args *InfoArgs, reply *InfoReply) error {
-	c.numWorker = args.numWorker
-	reply.numMapTask = c.numMapTask
-	reply.numReduceTask = c.numReduceTask
+func (c *Coordinator) InfoHandler(args *InfoArgs, reply *InfoReply) error {
+	c.numWorker = args.NumWorker
+	reply.NumMapTask = c.numMapTask
+	reply.NumReduceTask = c.numReduceTask
 	return nil
 }
 
-func (c *Coordinator) reportHandler(args *ReportArgs, reply *ReportReply) error {
-	if args.reduceIsEnd == true {
+func (c *Coordinator) ReportHandler(args *ReportArgs, reply *ReportReply) error {
+	if args.ReduceIsEnd == true {
 		c.Over = true
-	} else if args.taskType == "map" && c.numDoneMapTask != c.numMapTask {
-		reply.keepWorking = true
-	} else if args.taskType == "reduce" && c.numDoneReduceTask != c.numReduceTask {
-		reply.keepWorking = true
+	} else if args.TaskType == "map" && c.numDoneMapTask != c.numMapTask {
+		reply.KeepWorking = true
+	} else if args.TaskType == "reduce" && c.numDoneReduceTask != c.numReduceTask {
+		reply.KeepWorking = true
 	}
 	return nil
 }
 
-func (c *Coordinator) finishHandler(args *FinishArgs, reply *FinishReply) error {
+func (c *Coordinator) FinishHandler(args *FinishArgs, reply *FinishReply) error {
 	c.taskLock.Lock()
 	defer c.taskLock.Unlock()
 	var task Task
-	if args.taskType == "map" {
-		task = c.mapTask[args.taskId]
-	} else {
-		task = c.reduceTask[args.taskId]
+	if args.TaskType == "map" {
+		task = c.mapTask[args.TaskId]
+	} else if args.TaskType == "reduce" {
+		task = c.reduceTask[args.TaskId]
 	}
-	if args.taskDone == false {
-		task.taskState = Idle
+	if args.TaskDone == false {
+		task.TaskState = Idle
 		reply.OK = true
-		if args.taskType == "map" {
-			c.mapTaskList.PushBack(task.taskId)
-		} else {
-			c.reduceTaskList.PushBack(task.taskId)
+		if args.TaskType == "map" {
+			c.mapTaskList.PushBack(task.TaskId)
+		} else if args.TaskType == "reduce" {
+			c.reduceTaskList.PushBack(task.TaskId)
 		}
 		return nil
 	}
-	if args.taskType == "map" {
+	if args.TaskType == "map" {
 		c.numDoneMapTask++
-	} else {
-		c.numReduceTask++
+	} else if args.TaskType == "reduce" {
+		c.numDoneReduceTask++
 	}
 	// Need Implementation
 	reply.OK = true
-	task.taskState = Completed
+	task.TaskState = Completed
 	return nil
 }
 
@@ -148,6 +138,8 @@ func (c *Coordinator) Done() bool {
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{}
 	c.numReduceTask = nReduce
+	c.mapTaskList = new(list.List)
+	c.reduceTaskList = new(list.List)
 	for id, fileName := range files {
 		c.mapTask = append(c.mapTask, Task{fileName, Idle, -1, id})
 		c.mapTaskList.PushBack(id)

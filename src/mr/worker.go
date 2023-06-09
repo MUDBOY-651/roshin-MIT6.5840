@@ -12,7 +12,11 @@ import "log"
 import "net/rpc"
 import "hash/fnv"
 
-const numWorker = 4
+const (
+	askWork   bool = false
+	askEnd    bool = true
+	numWorker int  = 4
+)
 
 // KeyValue
 // Map functions return a slice of KeyValue.
@@ -30,7 +34,7 @@ func (a Keys) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a Keys) Less(i, j int) bool { return a[i].Key < a[j].Key }
 
 // use ihash(key) % NReduce to choose the reduce
-// task number for each KeyValue emitted by Map.
+// Task number for each KeyValue emitted by Map.
 func ihash(key string) int {
 	h := fnv.New32a()
 	if _, err := h.Write([]byte(key)); err != nil {
@@ -45,7 +49,7 @@ func ihash(key string) int {
 	1. Xth reducer output mr-out-X
 
 tips:
-	1. ask for a task
+	1. ask for a Task
 	2.
 */
 
@@ -55,7 +59,7 @@ var Wg sync.WaitGroup
 type Node struct {
 	workerId      int
 	numReduceTask int
-	taskId        int // -1 means Idle
+	TaskId        int // -1 means Idle
 	Map           *func(string, string) []KeyValue
 	Reduce        *func(string, []string) string
 }
@@ -71,7 +75,7 @@ func (node *Node) Call(taskType string) Reply {
 	// the "Coordinator.Example" tells the
 	// receiving server that we'd like to call
 	// the Example() method of struct Coordinator.
-	ok := call("Coordinator.taskHandler", &args, &reply)
+	ok := call("Coordinator.TaskHandler", &args, &reply)
 	if ok == false {
 		fmt.Printf("call failed!\n")
 		os.Exit(0)
@@ -83,48 +87,48 @@ func (node *Node) Call(taskType string) Reply {
 func (node *Node) mapFunc() bool {
 	id := node.workerId
 	reply := node.Call("map")
-	if reply.gotTask == false {
+	if reply.GotTask == false {
 		return false
 	}
 	// 应该是一个浅拷贝
-	task := reply.task
-	node.taskId = task.taskId
+	task := reply.Task
+	node.TaskId = task.TaskId
 	defer func() {
-		node.taskId = -1
+		node.TaskId = -1
 	}()
-	f, err := os.Open(task.fileName)
+	f, err := os.Open(task.FileName)
 	if err != nil {
-		log.Fatalf("cannot open %v", task.fileName)
+		log.Fatalf("cannot open %v", task.FileName)
 		return false
 	}
 	content, err := io.ReadAll(f)
 	if err != nil {
-		log.Fatalf("cannot read %v", task.fileName)
+		log.Fatalf("cannot read %v", task.FileName)
 		return false
 	}
 	if err := f.Close(); err != nil {
-		log.Fatalf("Close %v FAILED !", task.fileName)
+		log.Fatalf("Close %v FAILED !", task.FileName)
 		return false
 	}
-	task.taskState = InProgress
+	task.TaskState = InProgress
 	var encoderList []*json.Encoder
 	for i := 0; i < node.numReduceTask; i++ {
 		tempFileName := fmt.Sprintf("mr-%v-%v", id, i)
 		f, _ := os.Create(tempFileName)
 		encoderList = append(encoderList, json.NewEncoder(f))
 	}
-	res := (*node.Map)(task.fileName, string(content))
+	res := (*node.Map)(task.FileName, string(content))
 	for _, kv := range res {
-		index := ihash(kv.Key)
+		index := ihash(kv.Key) % node.numReduceTask
 		if err := encoderList[index].Encode(&kv); err != nil {
-			FinishCall(task.taskId, node.workerId, false, "map")
-			log.Fatalf("cannot encode %v workerId=%v kv={%v}", task.fileName, id, kv)
+			FinishCall(task.TaskId, node.workerId, false, "map")
+			log.Fatalf("cannot encode %v WorkerId=%v kv={%v}", task.FileName, id, kv)
 			return false
 		}
 	}
 
 	// 发送一个 RPC 请求，告知 master 这个任务已完成
-	for reply := FinishCall(task.taskId, node.workerId, true, "map"); reply.OK == false; {
+	for reply := FinishCall(task.TaskId, node.workerId, true, "map"); reply.OK == false; {
 	}
 	Wg.Done()
 	return true
@@ -133,7 +137,8 @@ func (node *Node) mapFunc() bool {
 func (node *Node) reduceFunc() bool {
 	// ADD A RPC
 	reply := node.Call("reduce")
-	if reply.gotTask == false {
+	task := reply.Task
+	if reply.GotTask == false {
 		return false
 	}
 	id := node.workerId
@@ -152,10 +157,11 @@ func (node *Node) reduceFunc() bool {
 		}
 		f.Close()
 	}
-	sort.Sort(Keys(intermediate))
 	outputFileName := fmt.Sprintf("mr-out-%d", id)
 	ofile, _ := os.Create(outputFileName)
+	defer ofile.Close()
 
+	sort.Sort(Keys(intermediate))
 	// Need Implementation
 	// 合并相同 key
 	i := 0
@@ -171,9 +177,14 @@ func (node *Node) reduceFunc() bool {
 		output := (*node.Reduce)(intermediate[i].Key, values)
 
 		// this is the correct format for each line of Reduce output.
-		fmt.Fprintf(ofile, "%v %v\n", intermediate[i].Key, output)
-
+		_, err := fmt.Fprintf(ofile, "%v %v\n", intermediate[i].Key, output)
+		if err != nil {
+			log.Fatalf("Reducer %d Fprintf Error!\n", id)
+		}
 		i = j
+	}
+
+	for reply := FinishCall(task.TaskId, node.workerId, true, "reduce"); reply.OK == false; {
 	}
 	// Need Implementation
 	Wg.Done()
@@ -183,34 +194,32 @@ func (node *Node) reduceFunc() bool {
 func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
 	reply := InfoCall(numWorker)
-	workers := [numWorker]*Node{}
-	for id, node := range workers {
-		node.taskId = -1
-		node.workerId = id
-		node.numReduceTask = reply.numReduceTask
-		node.Map = &mapf
-		node.Reduce = &reducef
+	workers := make([]*Node, numWorker)
+	for i := 0; i < numWorker; i++ {
+		workers[i] = new(Node)
+		workers[i].TaskId = -1
+		workers[i].workerId = i
+		workers[i].numReduceTask = reply.NumReduceTask
+		workers[i].Map = &mapf
+		workers[i].Reduce = &reducef
 	}
-	numReduceTask, numMapTask := reply.numReduceTask, reply.numMapTask
-	const (
-		askWork bool = false
-		askEnd  bool = true
-	)
+	numReduceTask, numMapTask := reply.NumReduceTask, reply.NumMapTask
+
 	Wg.Add(numMapTask)
-	for reply := ReportCall(askWork, "map"); reply.keepWorking == true; {
+	for reply := ReportCall(askWork, "map"); reply.KeepWorking == true; {
 		for i := 0; i < numWorker; i++ {
-			// taskId == -1 means the worker is Idle
-			if workers[i].taskId == -1 {
+			// TaskId == -1 means the worker is Idle
+			if workers[i].TaskId == -1 {
 				go workers[i].mapFunc()
 			}
 		}
 	}
 	Wg.Wait()
-	// map finished
+	// REDUCE
 	Wg.Add(numReduceTask)
-	for reply := ReportCall(askWork, "reduce"); reply.keepWorking == true; {
+	for reply := ReportCall(askWork, "reduce"); reply.KeepWorking == true; {
 		for i := 0; i < numWorker; i++ {
-			if workers[i].taskId == -1 {
+			if workers[i].TaskId == -1 {
 				go workers[i].reduceFunc()
 			}
 		}
@@ -222,7 +231,7 @@ func Worker(mapf func(string, string) []KeyValue,
 func InfoCall(numWorker int) InfoReply {
 	args := InfoArgs{numWorker}
 	reply := InfoReply{}
-	ok := call("Coordinator.infoHandler", &args, &reply)
+	ok := call("Coordinator.InfoHandler", &args, &reply)
 	if ok == false {
 		fmt.Printf("InfoCall failed!\n")
 		os.Exit(0)
@@ -233,7 +242,7 @@ func InfoCall(numWorker int) InfoReply {
 func ReportCall(askEnd bool, taskType string) ReportReply {
 	args := ReportArgs{askEnd, taskType}
 	reply := ReportReply{}
-	ok := call("Coordinator.reportHandler", &args, &reply)
+	ok := call("Coordinator.ReportHandler", &args, &reply)
 	if ok == false {
 		fmt.Printf("ReportCall failed!\n")
 	}
@@ -244,7 +253,7 @@ func FinishCall(taskId int, workerId int, taskDone bool, taskType string) Finish
 	// Need Implementation
 	args := FinishArgs{taskId, workerId, taskDone, taskType}
 	reply := FinishReply{}
-	ok := call("Coordinator.finishHandler", &args, &reply)
+	ok := call("Coordinator.FinishHandler", &args, &reply)
 	if ok == false {
 		fmt.Printf("FinishCall failed!\n")
 	}
