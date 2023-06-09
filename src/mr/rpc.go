@@ -25,6 +25,7 @@ type InfoReply struct {
 
 type ReportArgs struct {
 	reduceIsEnd bool
+	taskType    string
 }
 
 type ReportReply struct {
@@ -34,6 +35,8 @@ type ReportReply struct {
 type FinishArgs struct {
 	taskId   int
 	workerId int
+	taskDone bool
+	taskType string
 }
 
 type FinishReply struct {
@@ -46,7 +49,8 @@ type Args struct {
 }
 
 type Reply struct {
-	task Task
+	gotTask bool
+	task    Task
 }
 
 // Cook up a unique-ish UNIX-domain socket name
