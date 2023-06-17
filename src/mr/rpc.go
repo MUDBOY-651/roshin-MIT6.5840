@@ -31,6 +31,7 @@ type ReportArgs struct {
 
 type ReportReply struct {
 	KeepWorking bool
+	ShouldExit  bool
 }
 
 type FinishArgs struct {
@@ -50,9 +51,10 @@ type TaskArgs struct {
 }
 
 type TaskReply struct {
-	GotTask   bool
-	Task      Task
-	NumWorker int
+	GotTask    bool
+	Task       Task
+	NumWorker  int
+	NumMapTask int
 }
 
 type AskReduceArgs struct {
@@ -60,7 +62,8 @@ type AskReduceArgs struct {
 }
 
 type AskReduceReply struct {
-	CanReduce bool
+	CanReduce  bool
+	ShouldExit bool
 }
 
 // Cook up a unique-ish UNIX-domain socket name

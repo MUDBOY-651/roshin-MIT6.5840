@@ -5,7 +5,7 @@
 #
 
 # un-comment this to run the tests with the Go race detector.
-# RACE=-race
+ RACE=-race
 
 if [[ "$OSTYPE" = "darwin"* ]]
 then
@@ -116,6 +116,7 @@ fi
 # wait for remaining workers and coordinator to exit.
 wait
 
+
 #########################################################
 # now indexer
 rm -f mr-*
@@ -144,9 +145,9 @@ else
   failed_any=1
 fi
 
-exit
 
 wait
+
 
 #########################################################
 echo '***' Starting map parallelism test.

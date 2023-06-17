@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"sort"
+	"sync"
 	"time"
 )
 import "log"
@@ -76,19 +77,15 @@ func NewWorker(workerId int, numReduceTask int, taskId int, mapf *func(string, s
 // example function to show how to make an RPC call to the coordinator.
 // the RPC argument and reply types are defined in rpc.go.
 func (node *Node) Call(taskType string) TaskReply {
+	log.Printf("[Call] Worker#%d in Call", node.WorkerId)
 	args := TaskArgs{node.WorkerId, taskType}
-	// declare a reply structure.
 	reply := TaskReply{}
-	// send the RPC request, wait for the reply.
-	// the "Coordinator.Example" tells the
-	// receiving server that we'd like to call
-	// the Example() method of struct Coordinator.
 	ok := call("Coordinator.TaskHandler", &args, &reply)
 	if ok == false {
-		fmt.Printf("call failed!\n")
-		os.Exit(0)
+		log.Printf("[Call] Worker#%d call failed!\n", node.WorkerId)
+		//os.Exit(0)
 	}
-	fmt.Printf("id:%d reply: %v\n", node.WorkerId, reply)
+	//log.Printf("[Call] Worker#%d response:{Task:%v numWorker:%d}", node.WorkerId, reply.Task, reply.NumWorker)
 	return reply
 }
 
@@ -96,14 +93,12 @@ func (node *Node) mapFunc() bool {
 	id := node.WorkerId
 	reply := node.Call("map")
 	if reply.GotTask == false {
+		log.Printf("[mapFunc] Worker#%d doesn't get MapTask", node.WorkerId)
 		return false
 	}
 	// 应该是一个浅拷贝
 	task := reply.Task
 	node.TaskId = task.TaskId
-	defer func() {
-		node.TaskId = -1
-	}()
 	f, err := os.Open(task.FileName)
 	if err != nil {
 		log.Fatalf("cannot open %v", task.FileName)
@@ -120,7 +115,7 @@ func (node *Node) mapFunc() bool {
 	}
 	var encoderList []*json.Encoder
 	for i := 0; i < node.NumReduceTask; i++ {
-		tempFileName := fmt.Sprintf("mr-%v-%v", id, i)
+		tempFileName := fmt.Sprintf("mr-%v-%v", node.TaskId, i)
 		f, _ := os.Create(tempFileName)
 		encoderList = append(encoderList, json.NewEncoder(f))
 	}
@@ -133,38 +128,52 @@ func (node *Node) mapFunc() bool {
 			return false
 		}
 	}
-
 	// 发送一个 RPC 请求，告知 master 这个任务已完成
 	for reply := node.FinishCall(true, "map"); reply.OK == false; {
+		reply = node.FinishCall(true, "map")
 	}
+	log.Printf("[mapFunc] Worker#%d Mapped taskId#%d File[%s]", task.WorkerId, task.TaskId, task.FileName)
 	return true
 }
 
 func (node *Node) reduceFunc() bool {
 	// ADD A RPC
+	log.Printf("[reduceFunc] Worker#%d in Reduce", node.WorkerId)
 	reply := node.Call("reduce")
-	task := reply.Task
-	node.TaskId = task.TaskId
 	if reply.GotTask == false {
 		return false
 	}
+	task := reply.Task
+	node.TaskId = task.TaskId
+	defer func() {
+		node.TaskId = -1
+	}()
 	id := node.WorkerId
 	intermediate := []KeyValue{}
 	// 处理一列
-	for i := 0; i < reply.NumWorker; i++ {
-		tempFileName := fmt.Sprintf("mr-%v-%v", i, node.TaskId)
-		f, _ := os.Open(tempFileName)
-		dec := json.NewDecoder(f)
-		for {
-			var kv KeyValue
-			if err := dec.Decode(&kv); err != nil {
-				break
+	var wg sync.WaitGroup
+	var inter_lock sync.Mutex
+	wg.Add(reply.NumMapTask)
+	for i := 0; i < reply.NumMapTask; i++ {
+		go func(i int) {
+			tempFileName := fmt.Sprintf("mr-%v-%v", i, node.TaskId)
+			f, _ := os.Open(tempFileName)
+			dec := json.NewDecoder(f)
+			for {
+				var kv KeyValue
+				if err := dec.Decode(&kv); err != nil {
+					break
+				}
+				inter_lock.Lock()
+				intermediate = append(intermediate, kv)
+				inter_lock.Unlock()
 			}
-			intermediate = append(intermediate, kv)
-		}
-		f.Close()
+			f.Close()
+			wg.Done()
+		}(i)
 	}
-	outputFileName := fmt.Sprintf("mr-out-%d", id)
+	wg.Wait()
+	outputFileName := fmt.Sprintf("mr-out-%d", node.TaskId)
 	ofile, _ := os.Create(outputFileName)
 	defer ofile.Close()
 
@@ -192,6 +201,7 @@ func (node *Node) reduceFunc() bool {
 	}
 
 	for reply := node.FinishCall(true, "reduce"); reply.OK == false; {
+		reply = node.FinishCall(true, "reduce")
 	}
 	// Need Implementation
 	return true
@@ -215,13 +225,26 @@ func Worker(mapf func(string, string) []KeyValue,
 	for reply := worker.ReportCall(askWork, "map"); reply.KeepWorking == true; time.Sleep(time.Second) {
 		// TaskId == -1 means the worker is Idle
 		worker.mapFunc()
+		reply = worker.ReportCall(askWork, "map")
+		if reply.ShouldExit == true {
+			os.Exit(0)
+		}
 	}
+	log.Printf("[Worker] Worker#%d Map Finished!", worker.WorkerId)
 	for reply := worker.AskReduceCall(); reply.CanReduce == false; time.Sleep(time.Second) {
 		log.Printf("Worker %d waiting for Map Finished\n", worker.WorkerId)
+		reply = worker.AskReduceCall()
+		if reply.ShouldExit == true {
+			os.Exit(0)
+		}
 	}
 	// REDUCE
 	for reply := worker.ReportCall(askWork, "reduce"); reply.KeepWorking == true; time.Sleep(time.Second) {
 		worker.reduceFunc()
+		reply = worker.ReportCall(askWork, "reduce")
+		if reply.ShouldExit == true {
+			os.Exit(0)
+		}
 	}
 	worker.ReportCall(askEnd, "")
 }
@@ -244,6 +267,7 @@ func (node *Node) ReportCall(askEnd bool, taskType string) ReportReply {
 	if ok == false {
 		fmt.Printf("ReportCall failed!\n")
 	}
+	log.Printf("[ReportCall] Worker#%d Reported, KeepWorking=%v", node.WorkerId, reply)
 	return reply
 }
 
@@ -253,9 +277,10 @@ func (node *Node) FinishCall(taskDone bool, taskType string) FinishReply {
 	reply := FinishReply{}
 	ok := call("Coordinator.FinishHandler", &args, &reply)
 	if ok == false {
-		fmt.Printf("FinishCall failed!\n")
+		log.Fatalf("[FinishCall] FinishCall failed!")
 	}
 	//
+	log.Printf("[FinishCall]: Worker #%d finish %s Task #%d\n", node.WorkerId, taskType, node.TaskId)
 	node.TaskId = -1
 	return reply
 }
