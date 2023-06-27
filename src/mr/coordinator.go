@@ -2,6 +2,7 @@ package mr
 
 import (
 	"container/list"
+	"fmt"
 	"log"
 	"math"
 	"sync"
@@ -41,7 +42,6 @@ type Coordinator struct {
 	infoLock          sync.Mutex
 	id2ListNode       map[int]*list.Element
 	lastActiveList    *list.List // List<time.TIme>
-	listLock          sync.Mutex
 	id2TaskId         map[int]int
 	Over              atomic.Value
 }
@@ -58,8 +58,8 @@ type Val struct {
 }
 
 func (c *Coordinator) SetActive(workerId int) {
-	c.listLock.Lock()
-	defer c.listLock.Unlock()
+	c.TaskLock(workerId)
+	defer c.TaskUnlock(workerId)
 	if temp, ok := c.id2ListNode[workerId]; ok {
 		c.lastActiveList.Remove(temp)
 		delete(c.id2ListNode, workerId)
@@ -70,8 +70,8 @@ func (c *Coordinator) SetActive(workerId int) {
 }
 
 func (c *Coordinator) CheckAlive(workerId int) bool {
-	c.listLock.Lock()
-	defer c.listLock.Unlock()
+	c.taskLock.Lock()
+	defer c.taskLock.Unlock()
 	if _, ok := c.id2TaskId[workerId]; !ok {
 		return false
 	}
@@ -96,8 +96,8 @@ func (c *Coordinator) TaskHandler(args *TaskArgs, reply *TaskReply) error {
 	defer func() {
 		c.TaskUnlock(args.WorkerId)
 	}()
-	if (args.TaskType == "map" && c.mapTaskList.Len() == 0 && !c.CheckWorker(args.WorkerId)) ||
-		(args.TaskType == "reduce" && c.reduceTaskList.Len() == 0 && !c.CheckWorker(args.WorkerId)) {
+	if (args.TaskType == "map" && c.mapTaskList.Len() == 0 && c.reduceTaskList.Len() == c.numReduceTask && !c.CheckWorker()) ||
+		(args.TaskType == "reduce" && c.reduceTaskList.Len() == 0 && !c.CheckWorker()) {
 		reply.GotTask = false
 		return nil
 	}
@@ -133,15 +133,16 @@ func (c *Coordinator) InfoHandler(args *InfoArgs, reply *InfoReply) error {
 }
 
 func (c *Coordinator) ReportHandler(args *ReportArgs, reply *ReportReply) error {
-	reply.ShouldExit = false
 	c.SetActive(args.WorkerId)
-	log.Printf("[ReportHandler] Worker#%d requests, resp: {%d/%d, %d/%d}",
+	fmt.Printf("[ReportHandler] Worker#%d requests, state: {%d/%d, %d/%d} \n",
 		args.WorkerId, c.numDoneMapTask, c.numMapTask, c.numDoneReduceTask, c.numReduceTask)
+	c.taskLock.Lock()
+	defer c.taskLock.Unlock()
 	if args.ReduceIsEnd == true {
 		c.Over.Store(true)
-	} else if args.TaskType == "map" && c.numDoneMapTask != c.numMapTask {
+	} else if args.TaskType == "map" && c.numDoneMapTask < c.numMapTask {
 		reply.KeepWorking = true
-	} else if args.TaskType == "reduce" && c.numDoneReduceTask != c.numReduceTask {
+	} else if args.TaskType == "reduce" && c.numDoneReduceTask < c.numReduceTask {
 		reply.KeepWorking = true
 	}
 	return nil
@@ -171,6 +172,10 @@ func (c *Coordinator) FinishHandler(args *FinishArgs, reply *FinishReply) error 
 		}
 		return nil
 	}
+	if task.TaskState == Completed {
+		reply.OK = true
+		return nil
+	}
 	delete(c.id2TaskId, args.WorkerId)
 	if args.TaskType == "map" {
 		c.numDoneMapTask++
@@ -184,36 +189,30 @@ func (c *Coordinator) FinishHandler(args *FinishArgs, reply *FinishReply) error 
 }
 
 func (c *Coordinator) AskReduceHandler(args *AskReduceArgs, reply *AskReduceReply) error {
-	//if c.CheckAlive(args.WorkerId) == false {
-	//	reply.ShouldExit = true
-	//	return nil
-	//}
 	c.SetActive(args.WorkerId)
-	reply.CanReduce = c.numDoneMapTask == c.numMapTask
+	if c.numDoneMapTask >= c.numMapTask {
+		reply.CanReduce = true
+	} else {
+		reply.CanReduce = false
+	}
 	return nil
 }
 
-func (c *Coordinator) KickWorker(workerId int, master int) {
-	log.Printf("[KickWorker] Kicking Worker#%d", workerId)
-	if master == -1 {
-		c.TaskLock(master)
-		defer c.TaskUnlock(master)
-	}
+func (c *Coordinator) KickWorker(workerId int) {
 	taskId := c.id2TaskId[workerId]
-	if c.numDoneMapTask == 0 {
+	delete(c.id2TaskId, workerId)
+	if c.numDoneMapTask >= c.numMapTask {
 		c.reduceTask[taskId].TaskState = Idle
 		c.reduceTaskList.PushBack(taskId)
 	} else {
 		c.mapTask[taskId].TaskState = Idle
 		c.mapTaskList.PushBack(taskId)
 	}
-	delete(c.id2TaskId, workerId)
-	log.Printf("[KickWorker] Worker#%d, kicked!", workerId)
+	fmt.Printf("[KickWorker] Worker#%d, Kicked, ", workerId)
+	fmt.Printf("Lmap=%d Lreduce=%d\n", c.mapTaskList.Len(), c.reduceTaskList.Len())
 }
 
-func (c *Coordinator) CheckWorker(master int) bool {
-	c.listLock.Lock()
-	defer c.listLock.Unlock()
+func (c *Coordinator) CheckWorker() bool {
 	now := time.Now()
 	if c.lastActiveList.Len() == 0 {
 		return false
@@ -221,7 +220,7 @@ func (c *Coordinator) CheckWorker(master int) bool {
 	head := c.lastActiveList.Front()
 	val := head.Value.(Val)
 	if IsOutDate(now, val.TTL) {
-		c.KickWorker(val.workerId, master)
+		c.KickWorker(val.workerId)
 		return true
 	}
 	return false
@@ -265,6 +264,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 }
 
 // start a thread that listens for RPCs from worker.go
+
 func (c *Coordinator) server() {
 	rpc.Register(c)
 	rpc.HandleHTTP()
@@ -277,7 +277,9 @@ func (c *Coordinator) server() {
 	}
 	go func() {
 		for c.Over.Load().(bool) != true {
-			c.CheckWorker(-1)
+			c.taskLock.Lock()
+			c.CheckWorker()
+			c.taskLock.Unlock()
 			time.Sleep(8 * time.Second)
 		}
 	}()

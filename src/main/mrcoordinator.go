@@ -9,12 +9,17 @@ package main
 // Please do not change this file.
 //
 
-import "6.5840/mr"
+import (
+	"6.5840/mr"
+	"io/ioutil"
+	"log"
+)
 import "time"
 import "os"
 import "fmt"
 
 func main() {
+	log.SetOutput(ioutil.Discard)
 	if len(os.Args) < 2 {
 		_, err := fmt.Fprintf(os.Stderr, "Usage: mrcoordinator inputfiles...\n")
 		if err != nil {

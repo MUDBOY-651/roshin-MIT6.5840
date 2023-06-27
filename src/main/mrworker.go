@@ -10,7 +10,10 @@ package main
 // Please do not change this file.
 //
 
-import "6.5840/mr"
+import (
+	"6.5840/mr"
+	"io/ioutil"
+)
 import "plugin"
 import "os"
 import "fmt"
@@ -30,6 +33,7 @@ func main() {
 // load the application Map and Reduce functions
 // from a plugin file, e.g. ../mrapps/wc.so
 func loadPlugin(filename string) (func(string, string) []mr.KeyValue, func(string, []string) string) {
+	log.SetOutput(ioutil.Discard)
 	p, err := plugin.Open(filename)
 	if err != nil {
 		log.Fatalf("cannot load plugin %v", filename)

@@ -115,7 +115,7 @@ func (node *Node) mapFunc() bool {
 	}
 	var encoderList []*json.Encoder
 	for i := 0; i < node.NumReduceTask; i++ {
-		tempFileName := fmt.Sprintf("mr-%v-%v", node.TaskId, i)
+		tempFileName := fmt.Sprintf("mr-tmp-%v-%v", node.TaskId, i)
 		f, _ := os.Create(tempFileName)
 		encoderList = append(encoderList, json.NewEncoder(f))
 	}
@@ -132,7 +132,7 @@ func (node *Node) mapFunc() bool {
 	for reply := node.FinishCall(true, "map"); reply.OK == false; {
 		reply = node.FinishCall(true, "map")
 	}
-	log.Printf("[mapFunc] Worker#%d Mapped taskId#%d File[%s]", task.WorkerId, task.TaskId, task.FileName)
+	log.Printf("[mapFunc] Worker#%d Mapped taskId#%d", task.WorkerId, task.TaskId)
 	return true
 }
 
@@ -153,11 +153,13 @@ func (node *Node) reduceFunc() bool {
 	// 处理一列
 	var wg sync.WaitGroup
 	var inter_lock sync.Mutex
-	wg.Add(reply.NumMapTask)
 	for i := 0; i < reply.NumMapTask; i++ {
+		wg.Add(1)
 		go func(i int) {
-			tempFileName := fmt.Sprintf("mr-%v-%v", i, node.TaskId)
+			defer wg.Done()
+			tempFileName := fmt.Sprintf("mr-tmp-%v-%v", i, node.TaskId)
 			f, _ := os.Open(tempFileName)
+			defer f.Close()
 			dec := json.NewDecoder(f)
 			for {
 				var kv KeyValue
@@ -168,8 +170,6 @@ func (node *Node) reduceFunc() bool {
 				intermediate = append(intermediate, kv)
 				inter_lock.Unlock()
 			}
-			f.Close()
-			wg.Done()
 		}(i)
 	}
 	wg.Wait()
@@ -226,25 +226,19 @@ func Worker(mapf func(string, string) []KeyValue,
 		// TaskId == -1 means the worker is Idle
 		worker.mapFunc()
 		reply = worker.ReportCall(askWork, "map")
-		if reply.ShouldExit == true {
-			os.Exit(0)
+		if reply.KeepWorking == false {
+			log.Printf("[Worker] Worker#%d Map Finished!", worker.WorkerId)
+			break
 		}
 	}
-	log.Printf("[Worker] Worker#%d Map Finished!", worker.WorkerId)
 	for reply := worker.AskReduceCall(); reply.CanReduce == false; time.Sleep(time.Second) {
 		log.Printf("Worker %d waiting for Map Finished\n", worker.WorkerId)
 		reply = worker.AskReduceCall()
-		if reply.ShouldExit == true {
-			os.Exit(0)
-		}
 	}
 	// REDUCE
 	for reply := worker.ReportCall(askWork, "reduce"); reply.KeepWorking == true; time.Sleep(time.Second) {
 		worker.reduceFunc()
 		reply = worker.ReportCall(askWork, "reduce")
-		if reply.ShouldExit == true {
-			os.Exit(0)
-		}
 	}
 	worker.ReportCall(askEnd, "")
 }
@@ -257,6 +251,7 @@ func InfoCall() InfoReply {
 		fmt.Printf("InfoCall failed!\n")
 		os.Exit(0)
 	}
+	fmt.Printf("[InfoCall] New Worker ID = %d\n", reply.WorkerId)
 	return reply
 }
 
@@ -279,7 +274,6 @@ func (node *Node) FinishCall(taskDone bool, taskType string) FinishReply {
 	if ok == false {
 		log.Fatalf("[FinishCall] FinishCall failed!")
 	}
-	//
 	log.Printf("[FinishCall]: Worker #%d finish %s Task #%d\n", node.WorkerId, taskType, node.TaskId)
 	node.TaskId = -1
 	return reply
