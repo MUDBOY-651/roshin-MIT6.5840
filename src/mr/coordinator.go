@@ -2,7 +2,6 @@ package mr
 
 import (
 	"container/list"
-	"fmt"
 	"log"
 	"math"
 	"sync"
@@ -63,6 +62,7 @@ func (c *Coordinator) SetActive(workerId int) {
 	if temp, ok := c.id2ListNode[workerId]; ok {
 		c.lastActiveList.Remove(temp)
 		delete(c.id2ListNode, workerId)
+    delete(c.id2TaskId, workerId)
 	}
 	elem := Val{workerId, time.Now()}
 	c.lastActiveList.PushBack(elem)
@@ -96,11 +96,15 @@ func (c *Coordinator) TaskHandler(args *TaskArgs, reply *TaskReply) error {
 	defer func() {
 		c.TaskUnlock(args.WorkerId)
 	}()
-	if (args.TaskType == "map" && c.mapTaskList.Len() == 0 && c.reduceTaskList.Len() == c.numReduceTask && !c.CheckWorker()) ||
+	if (args.TaskType == "map" && c.mapTaskList.Len() == 0 && !c.CheckWorker()) ||
 		(args.TaskType == "reduce" && c.reduceTaskList.Len() == 0 && !c.CheckWorker()) {
 		reply.GotTask = false
 		return nil
 	}
+  if args.TaskType == "map" && c.mapTaskList.Len() == 0 && c.reduceTaskList.Len() != c.numReduceTask {
+    reply.GotTask = false
+    return nil
+  }
 	reply.GotTask = true
 	reply.NumMapTask = c.numMapTask
 	reply.NumWorker = c.numWorker
@@ -134,7 +138,7 @@ func (c *Coordinator) InfoHandler(args *InfoArgs, reply *InfoReply) error {
 
 func (c *Coordinator) ReportHandler(args *ReportArgs, reply *ReportReply) error {
 	c.SetActive(args.WorkerId)
-	fmt.Printf("[ReportHandler] Worker#%d requests, state: {%d/%d, %d/%d} \n",
+	log.Printf("[ReportHandler] Worker#%d requests, state: {%d/%d, %d/%d} \n",
 		args.WorkerId, c.numDoneMapTask, c.numMapTask, c.numDoneReduceTask, c.numReduceTask)
 	c.taskLock.Lock()
 	defer c.taskLock.Unlock()
@@ -162,6 +166,10 @@ func (c *Coordinator) FinishHandler(args *FinishArgs, reply *FinishReply) error 
 	} else if args.TaskType == "reduce" {
 		task = &c.reduceTask[args.TaskId]
 	}
+	delete(c.id2TaskId, args.WorkerId)
+  temp := c.id2ListNode[args.WorkerId]
+  c.lastActiveList.Remove(temp)
+  delete(c.id2ListNode, args.WorkerId)
 	if args.TaskDone == false {
 		task.TaskState = Idle
 		reply.OK = true
@@ -176,13 +184,14 @@ func (c *Coordinator) FinishHandler(args *FinishArgs, reply *FinishReply) error 
 		reply.OK = true
 		return nil
 	}
-	delete(c.id2TaskId, args.WorkerId)
 	if args.TaskType == "map" {
 		c.numDoneMapTask++
 	} else if args.TaskType == "reduce" {
 		c.numDoneReduceTask++
 	}
 	// Need Implementation
+  log.Printf("[FinishHandler] Worker#%d completed %sTask-%d {%d/%d, %d/%d}\n", args.WorkerId, args.TaskType, args.TaskId,
+              c.numDoneMapTask, c.numMapTask, c.numDoneReduceTask, c.numReduceTask)
 	reply.OK = true
 	task.TaskState = Completed
 	return nil
@@ -201,6 +210,8 @@ func (c *Coordinator) AskReduceHandler(args *AskReduceArgs, reply *AskReduceRepl
 func (c *Coordinator) KickWorker(workerId int) {
 	taskId := c.id2TaskId[workerId]
 	delete(c.id2TaskId, workerId)
+  temp := c.id2ListNode[workerId]
+  c.lastActiveList.Remove(temp)
 	if c.numDoneMapTask >= c.numMapTask {
 		c.reduceTask[taskId].TaskState = Idle
 		c.reduceTaskList.PushBack(taskId)
@@ -208,8 +219,8 @@ func (c *Coordinator) KickWorker(workerId int) {
 		c.mapTask[taskId].TaskState = Idle
 		c.mapTaskList.PushBack(taskId)
 	}
-	fmt.Printf("[KickWorker] Worker#%d, Kicked, ", workerId)
-	fmt.Printf("Lmap=%d Lreduce=%d\n", c.mapTaskList.Len(), c.reduceTaskList.Len())
+	log.Printf("[KickWorker] Worker#%d, Kicked, ", workerId)
+	log.Printf("Lmap=%d Lreduce=%d\n", c.mapTaskList.Len(), c.reduceTaskList.Len())
 }
 
 func (c *Coordinator) CheckWorker() bool {

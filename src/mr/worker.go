@@ -212,7 +212,7 @@ func (node *Node) AskReduceCall() AskReduceReply {
 	reply := AskReduceReply{}
 	ok := call("Coordinator.AskReduceHandler", &args, &reply)
 	if ok == false {
-		fmt.Printf("ReportCall failed!\n")
+		log.Printf("ReportCall failed!\n")
 	}
 	return reply
 }
@@ -248,10 +248,10 @@ func InfoCall() InfoReply {
 	reply := InfoReply{}
 	ok := call("Coordinator.InfoHandler", &args, &reply)
 	if ok == false {
-		fmt.Printf("InfoCall failed!\n")
+		log.Printf("InfoCall failed!\n")
 		os.Exit(0)
 	}
-	fmt.Printf("[InfoCall] New Worker ID = %d\n", reply.WorkerId)
+	log.Printf("[InfoCall] New Worker ID = %d\n", reply.WorkerId)
 	return reply
 }
 
@@ -260,7 +260,7 @@ func (node *Node) ReportCall(askEnd bool, taskType string) ReportReply {
 	reply := ReportReply{}
 	ok := call("Coordinator.ReportHandler", &args, &reply)
 	if ok == false {
-		fmt.Printf("ReportCall failed!\n")
+		log.Printf("ReportCall failed!\n")
 	}
 	log.Printf("[ReportCall] Worker#%d Reported, KeepWorking=%v", node.WorkerId, reply)
 	return reply
@@ -274,7 +274,7 @@ func (node *Node) FinishCall(taskDone bool, taskType string) FinishReply {
 	if ok == false {
 		log.Fatalf("[FinishCall] FinishCall failed!")
 	}
-	log.Printf("[FinishCall]: Worker #%d finish %s Task #%d\n", node.WorkerId, taskType, node.TaskId)
+	log.Printf("[FinishCall]: Worker #%d finish %sTask #%d\n", node.WorkerId, taskType, node.TaskId)
 	node.TaskId = -1
 	return reply
 }
