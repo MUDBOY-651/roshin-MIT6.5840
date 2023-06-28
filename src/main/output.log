@@ -1,0 +1,111 @@
+*** Starting crash test.
+[InfoCall] New Worker ID = 3
+[InfoCall] New Worker ID = 0
+[InfoCall] New Worker ID = 2
+[InfoCall] New Worker ID = 1
+[InfoCall] New Worker ID = 4
+[ReportHandler] Worker#0 requests, state: {0/8, 0/10} 
+[ReportHandler] Worker#1 requests, state: {0/8, 0/10} 
+[ReportHandler] Worker#2 requests, state: {0/8, 0/10} 
+[ReportHandler] Worker#4 requests, state: {0/8, 0/10} 
+[ReportHandler] Worker#3 requests, state: {0/8, 0/10} 
+[InfoCall] New Worker ID = 5
+[ReportHandler] Worker#5 requests, state: {0/8, 0/10} 
+[ReportHandler] Worker#3 requests, state: {3/8, 0/10} 
+[ReportHandler] Worker#5 requests, state: {3/8, 0/10} 
+[ReportHandler] Worker#0 requests, state: {3/8, 0/10} 
+[ReportHandler] Worker#5 requests, state: {3/8, 0/10} 
+[ReportHandler] Worker#0 requests, state: {4/8, 0/10} 
+[InfoCall] New Worker ID = 6
+[ReportHandler] Worker#6 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#6 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#5 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#0 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#6 requests, state: {4/8, 0/10} 
+[InfoCall] New Worker ID = 7
+[ReportHandler] Worker#7 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#7 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#5 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#0 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#6 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#7 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#5 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#0 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#6 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#7 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#5 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#0 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#6 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#7 requests, state: {4/8, 0/10} 
+[ReportHandler] Worker#1 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#0 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#5 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#6 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#7 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#1 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#0 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#5 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#6 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#7 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#1 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#0 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#5 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#6 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#7 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#1 requests, state: {5/8, 0/10} 
+[ReportHandler] Worker#4 requests, state: {6/8, 0/10} 
+[ReportHandler] Worker#0 requests, state: {6/8, 0/10} 
+[ReportHandler] Worker#5 requests, state: {6/8, 0/10} 
+[ReportHandler] Worker#6 requests, state: {6/8, 0/10} 
+[ReportHandler] Worker#7 requests, state: {6/8, 0/10} 
+[ReportHandler] Worker#1 requests, state: {6/8, 0/10} 
+[ReportHandler] Worker#4 requests, state: {6/8, 0/10} 
+[KickWorker] Worker#2, Kicked, Lmap=1 Lreduce=10
+[KickWorker] Worker#2, Kicked, Lmap=1 Lreduce=10
+[KickWorker] Worker#2, Kicked, Lmap=1 Lreduce=10
+[KickWorker] Worker#2, Kicked, Lmap=1 Lreduce=10
+[KickWorker] Worker#2, Kicked, Lmap=1 Lreduce=10
+[ReportHandler] Worker#1 requests, state: {7/8, 0/10} 
+[ReportHandler] Worker#7 requests, state: {7/8, 0/10} 
+[KickWorker] Worker#2, Kicked, Lmap=1 Lreduce=10
+[KickWorker] Worker#2, Kicked, Lmap=1 Lreduce=10
+[KickWorker] Worker#2, Kicked, Lmap=1 Lreduce=10
+[ReportHandler] Worker#7 requests, state: {8/8, 0/10} 
+[ReportHandler] Worker#7 requests, state: {8/8, 0/10} 
+[ReportHandler] Worker#7 requests, state: {8/8, 1/10} 
+[ReportHandler] Worker#7 requests, state: {8/8, 2/10} 
+[ReportHandler] Worker#1 requests, state: {8/8, 2/10} 
+[ReportHandler] Worker#1 requests, state: {8/8, 2/10} 
+[ReportHandler] Worker#1 requests, state: {8/8, 3/10} 
+[ReportHandler] Worker#7 requests, state: {8/8, 4/10} 
+[ReportHandler] Worker#7 requests, state: {8/8, 5/10} 
+[ReportHandler] Worker#4 requests, state: {8/8, 5/10} 
+[ReportHandler] Worker#4 requests, state: {8/8, 5/10} 
+[ReportHandler] Worker#4 requests, state: {8/8, 6/10} 
+[ReportHandler] Worker#7 requests, state: {8/8, 7/10} 
+[ReportHandler] Worker#4 requests, state: {8/8, 8/10} 
+[ReportHandler] Worker#5 requests, state: {9/8, 8/10} 
+[ReportHandler] Worker#5 requests, state: {9/8, 8/10} 
+[KickWorker] Worker#2, Kicked, Lmap=0 Lreduce=1
+[ReportHandler] Worker#5 requests, state: {9/8, 9/10} 
+[KickWorker] Worker#2, Kicked, Lmap=0 Lreduce=1
+[ReportHandler] Worker#4 requests, state: {9/8, 10/10} 
+[InfoCall] New Worker ID = 8
+[ReportHandler] Worker#8 requests, state: {9/8, 10/10} 
+[ReportHandler] Worker#8 requests, state: {9/8, 10/10} 
+[ReportHandler] Worker#8 requests, state: {9/8, 10/10} 
+[KickWorker] Worker#2, Kicked, Lmap=0 Lreduce=1
+[ReportHandler] Worker#5 requests, state: {9/8, 11/10} 
+[ReportHandler] Worker#6 requests, state: {9/8, 11/10} 
+[ReportHandler] Worker#6 requests, state: {9/8, 11/10} 
+[ReportHandler] Worker#6 requests, state: {9/8, 11/10} 
+[ReportHandler] Worker#4 requests, state: {9/8, 11/10} 
+[InfoCall] New Worker ID = 9
+[ReportHandler] Worker#9 requests, state: {9/8, 11/10} 
+[ReportHandler] Worker#9 requests, state: {9/8, 11/10} 
+[ReportHandler] Worker#9 requests, state: {9/8, 11/10} 
+[ReportHandler] Worker#5 requests, state: {9/8, 11/10} 
+mr-crash-all mr-correct-crash.txt differ: char 120, line 1
+--- crash output is not the same as mr-correct-crash.txt
+--- crash test: FAIL
+*** FAILED SOME TESTS

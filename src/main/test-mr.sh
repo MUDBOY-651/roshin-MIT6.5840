@@ -5,7 +5,7 @@
 #
 
 # un-comment this to run the tests with the Go race detector.
-# RACE=-race
+ RACE=-race
 
 if [[ "$OSTYPE" = "darwin"* ]]
 then
@@ -51,11 +51,13 @@ then
   TIMEOUT+=" -k 2s 45s "
 fi
 
+
 # run the test in a fresh sub-directory.
 rm -rf mr-tmp
 mkdir mr-tmp || exit 1
 cd mr-tmp || exit 1
 rm -f mr-*
+
 
 # make sure software is freshly built.
 (cd ../../mrapps && go clean)
@@ -73,6 +75,7 @@ rm -f mr-*
 (cd .. && go build $RACE mrsequential.go) || exit 1
 
 failed_any=0
+
 
 #########################################################
 # first word-count
@@ -113,6 +116,7 @@ fi
 # wait for remaining workers and coordinator to exit.
 wait
 
+
 #########################################################
 # now indexer
 rm -f mr-*
@@ -141,7 +145,9 @@ else
   failed_any=1
 fi
 
+
 wait
+
 
 #########################################################
 echo '***' Starting map parallelism test.

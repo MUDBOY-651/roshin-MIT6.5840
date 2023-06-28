@@ -6,7 +6,10 @@ package main
 // go build -buildmode=plugin nocrash.go
 //
 
-import "6.5840/mr"
+import (
+	"6.5840/mr"
+	"log"
+)
 import crand "crypto/rand"
 import "math/big"
 import "strings"
@@ -18,6 +21,7 @@ func maybeCrash() {
 	max := big.NewInt(1000)
 	rr, _ := crand.Int(crand.Reader, max)
 	if false && rr.Int64() < 500 {
+		log.Printf("A Worker Crash!")
 		// crash!
 		os.Exit(1)
 	}
