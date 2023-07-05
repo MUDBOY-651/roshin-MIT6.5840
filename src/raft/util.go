@@ -1,6 +1,9 @@
 package raft
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 // Debugging
 const Debug = true
@@ -12,6 +15,16 @@ func DPrintf(format string, a ...interface{}) (n int, err error) {
 		log.Printf(format, a...)
 	}
 	return
+}
+
+const DEBUG_TEST = true
+
+func ImportantInfo(format string, a ...interface{}) {
+	if DEBUG_TEST {
+		fmt.Printf("---------------------------------------------------------------\n")
+		log.Printf(format, a...)
+		fmt.Printf("---------------------------------------------------------------\n")
+	}
 }
 
 func min(a, b int) int {

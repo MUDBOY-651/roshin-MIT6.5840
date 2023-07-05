@@ -354,7 +354,7 @@ func (cfg *config) cleanup() {
 
 // attach server i to the net.
 func (cfg *config) connect(i int) {
-	// fmt.Printf("connect(%d)\n", i)
+	ImportantInfo("connect(%d)\n", i)
 
 	cfg.connected[i] = true
 
@@ -377,7 +377,6 @@ func (cfg *config) connect(i int) {
 
 // detach server i from the net.
 func (cfg *config) disconnect(i int) {
-	// fmt.Printf("disconnect(%d)\n", i)
 
 	cfg.connected[i] = false
 
@@ -396,6 +395,7 @@ func (cfg *config) disconnect(i int) {
 			cfg.net.Enable(endname, false)
 		}
 	}
+	DPrintf("disconnect(%d)\n", i)
 }
 
 func (cfg *config) rpcCount(server int) int {
@@ -448,6 +448,7 @@ func (cfg *config) checkOneLeader() int {
 		}
 
 		if len(leaders) != 0 {
+
 			return leaders[lastTermWithLeader][0]
 		}
 	}
