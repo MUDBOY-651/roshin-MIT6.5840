@@ -6,7 +6,9 @@ import (
 )
 
 // Debugging
-const Debug = true
+//const Debug = true
+
+const Debug = false
 
 var void interface{}
 
@@ -16,8 +18,16 @@ func DPrintf(format string, a ...interface{}) (n int, err error) {
 	}
 	return
 }
+func Dprintf(format string, a ...interface{}) (n int, err error) {
+	if Debug {
+		fmt.Printf(format, a...)
+	}
+	return
+}
 
-const DEBUG_TEST = true
+//const DEBUG_TEST = true
+
+const DEBUG_TEST = false
 
 func ImportantInfo(format string, a ...interface{}) {
 	if DEBUG_TEST {

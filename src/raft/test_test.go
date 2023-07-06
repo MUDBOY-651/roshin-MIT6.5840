@@ -9,7 +9,6 @@ package raft
 //
 
 import (
-	"log"
 	"testing"
 )
 import "fmt"
@@ -23,9 +22,10 @@ import "sync"
 const RaftElectionTimeout = 1000 * time.Millisecond
 
 func TestInitialElection2A(t *testing.T) {
+	//return
 	servers := 3
 	cfg := make_config(t, servers, false, false)
-	defer time.Sleep(2 * time.Second)
+	//defer time.Sleep(1 * time.Second)
 	defer cfg.cleanup()
 
 	cfg.begin("Test (2A): initial election")
@@ -55,52 +55,56 @@ func TestInitialElection2A(t *testing.T) {
 }
 
 func TestReElection2A(t *testing.T) {
-	fmt.Printf("---------------------------------------------\n")
-	log.Fatal("END TEST")
-	servers := 3
-	cfg := make_config(t, servers, false, false)
-	defer cfg.cleanup()
+	for i := 0; i < 1; i++ {
+		defer func() {
+			fmt.Printf("---------------------------------------------\n")
+			//log.Fatal("END TEST")
+			servers := 3
+			cfg := make_config(t, servers, false, false)
+			defer cfg.cleanup()
 
-	cfg.begin("Test (2A): election after network failure")
+			cfg.begin("Test (2A): election after network failure")
 
-	leader1 := cfg.checkOneLeader()
+			leader1 := cfg.checkOneLeader()
 
-	// if the leader disconnects, a new one should be elected.
-	cfg.disconnect(leader1)
-	//cfg.checkOneLeader()
-	ImportantInfo("CheckLeader Passed New Leader S%d\n", cfg.checkOneLeader())
-	fmt.Printf("OK After first disconnect\n")
+			// if the leader disconnects, a new one should be elected.
+			cfg.disconnect(leader1)
+			//cfg.checkOneLeader()
+			ImportantInfo("CheckLeader Passed New Leader S%d\n", cfg.checkOneLeader())
+			//ImportantInfo("OK After first disconnect\n")
 
-	// if the old leader rejoins, that shouldn't
-	// disturb the new leader. and the old leader
-	// should switch to follower.
-	cfg.connect(leader1)
-	leader2 := cfg.checkOneLeader()
+			// if the old leader rejoins, that shouldn't
+			// disturb the new leader. and the old leader
+			// should switch to follower.
+			cfg.connect(leader1)
+			leader2 := cfg.checkOneLeader()
 
-	// if there's no quorum, no new leader should
-	// be elected.
-	cfg.disconnect(leader2)
-	cfg.disconnect((leader2 + 1) % servers)
-	time.Sleep(2 * RaftElectionTimeout)
+			// if there's no quorum, no new leader should
+			// be elected.
+			cfg.disconnect(leader2)
+			cfg.disconnect((leader2 + 1) % servers)
+			time.Sleep(2 * RaftElectionTimeout)
 
-	// check that the one connected server
-	// does not think it is the leader.
-	cfg.checkNoLeader()
-	ImportantInfo("CheckNOLeader Passed\n")
+			// check that the one connected server
+			// does not think it is the leader.
+			cfg.checkNoLeader()
+			ImportantInfo("CheckNOLeader Passed\n")
 
-	// if a quorum arises, it should elect a leader.
-	cfg.connect((leader2 + 1) % servers)
-	cfg.checkOneLeader()
+			// if a quorum arises, it should elect a leader.
+			cfg.connect((leader2 + 1) % servers)
+			cfg.checkOneLeader()
 
-	// re-join of last node shouldn't prevent leader from existing.
-	cfg.connect(leader2)
-	cfg.checkOneLeader()
+			// re-join of last node shouldn't prevent leader from existing.
+			cfg.connect(leader2)
+			cfg.checkOneLeader()
 
-	cfg.end()
+			cfg.end()
+		}()
+	}
 }
 
 func TestManyElections2A(t *testing.T) {
-	log.Fatal("TEST END")
+	//log.Fatal("TEST END")
 	servers := 7
 	cfg := make_config(t, servers, false, false)
 	defer cfg.cleanup()
@@ -109,7 +113,8 @@ func TestManyElections2A(t *testing.T) {
 
 	cfg.checkOneLeader()
 
-	iters := 10
+	//iters := 10
+	iters := 100
 	for ii := 1; ii < iters; ii++ {
 		// disconnect three nodes
 		i1 := rand.Int() % servers
@@ -126,6 +131,7 @@ func TestManyElections2A(t *testing.T) {
 		cfg.connect(i1)
 		cfg.connect(i2)
 		cfg.connect(i3)
+		fmt.Printf("finished iter %d\n", ii)
 	}
 
 	cfg.checkOneLeader()

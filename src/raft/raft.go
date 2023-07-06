@@ -34,7 +34,8 @@ const (
 	Leader                          = "Leader"
 	Follower                        = "Follower"
 	Candidate                       = "Candidate"
-	HearBeatTime                    = 50 * time.Millisecond
+	HearBeatTime                    = 250 * time.Millisecond
+	ElectionTimeout                 = 300
 	ShouldUpdateTerm                = "ShouldUpdateTerm"
 	NULL                            = 0
 	ElectionTimeoutThresholdPercent = 0.8
@@ -47,18 +48,35 @@ func (rf *Raft) ToCandidate() {
 }
 
 func (rf *Raft) ToFollower(term int) {
-	DPrintf("S%d State: %s -> Follower Term:%d -> %d\n", rf.me, rf.state, term, rf.currentTerm)
+	DPrintf("S%d State: %s -> Follower Term:%d -> %d\n", rf.me, rf.state, rf.currentTerm, term)
 	rf.currentTerm = term
 	rf.state = Follower
 	rf.votedFor = -1
 	rf.ResetTime(RandTime())
 }
 
+var lk sync.Mutex
+
 func (rf *Raft) ToLeader() {
-	DPrintf("S%d -> Leader Term:%d\n", rf.me, rf.currentTerm)
+	Dprintf("[Leader Changed]S%d -> Leader Term:%d\n", rf.me, rf.currentTerm)
 	rf.state = Leader
 	rf.leaderID = rf.me
-	//rf.ResetTime(HearBeatTime)
+	for i := 0; i < len(rf.peers); i++ {
+		if i == rf.me {
+			continue
+		}
+		go func(server int) {
+			args := &AppendEntriesArgs{
+				Term:         rf.currentTerm,
+				LeaderId:     rf.me,
+				PrevLogIndex: NULL,
+				PrevLogTerm:  NULL,
+				Entries:      nil,
+				LeaderCommit: rf.commitIndex,
+			}
+			rf.sendAppendEntries(server, args, true)
+		}(i)
+	}
 }
 
 func (rf *Raft) ResetTime(duration time.Duration) {
@@ -72,6 +90,7 @@ func (rf *Raft) UpdateCurrentTerm(term int) {
 		return
 	}
 	//log.Printf("Update S%d term: %d -> %d\n", rf.me, rf.currentTerm, term)
+	rf.votedFor = -1
 	rf.currentTerm = term
 }
 
@@ -84,6 +103,9 @@ func (rf *Raft) UpdateCurrentTerm(term int) {
 // in part 2D you'll want to send other kinds of messages (e.g.,
 // snapshots) on the applyCh, but set CommandValid to false for these
 // other uses.
+
+type ClientCommand interface{}
+
 type ApplyMsg struct {
 	CommandValid bool
 	Command      interface{}
@@ -98,10 +120,10 @@ type ApplyMsg struct {
 
 type Log struct {
 	Term    int
-	Command interface{}
+	Command ClientCommand
 }
 
-// 用于包装一个函数
+// 用于包装一个请求或响应
 type ev struct {
 	target      interface{} // 函数体
 	returnValue interface{} // 返回值
@@ -115,6 +137,7 @@ type Raft struct {
 	persister *Persister          // Object to hold this peer's persisted state
 	me        int                 // this peer's index into peers[]
 	dead      int32               // set by Kill()
+	killedCh  chan int32
 
 	//
 	ch chan *ev
@@ -193,6 +216,8 @@ func (rf *Raft) Snapshot(index int, snapshot []byte) {
 
 }
 
+var mp map[string]int
+
 // example RequestVote RPC arguments structure.
 // field names must start with capital letters!
 type RequestVoteArgs struct {
@@ -254,7 +279,7 @@ func (rf *Raft) RequestVoteHandler(args *RequestVoteArgs, reply *RequestVoteRepl
 func (rf *Raft) ProcessRequestVoteRequest(args *RequestVoteArgs) (*RequestVoteReply, bool) {
 	// Your code here (2A, 2B).
 	reply := &RequestVoteReply{Term: rf.currentTerm, VoteGranted: true}
-	rf.PrintState("ProcessRequestVoteRequest", true)
+	rf.PrintState(fmt.Sprintf("ProcessRequestVoteRequest S%d term=%d", args.CandidateId, args.Term), true)
 	if args.Term < rf.currentTerm {
 		reply.VoteGranted = false
 		reply.MsgState = ShouldUpdateTerm
@@ -262,7 +287,11 @@ func (rf *Raft) ProcessRequestVoteRequest(args *RequestVoteArgs) (*RequestVoteRe
 	}
 	if args.Term > rf.currentTerm {
 		//DPrintf("[RequestVote] S%d Term: %d -> %d\n", rf.me, rf.currentTerm, args.Term)
-		rf.UpdateCurrentTerm(args.Term)
+		if rf.state != Follower {
+			rf.ToFollower(args.Term)
+		} else {
+			rf.UpdateCurrentTerm(args.Term)
+		}
 	} else if rf.votedFor != -1 && rf.votedFor != args.CandidateId {
 		DPrintf("RequstVote INJECTED args:%+v", args)
 		reply.VoteGranted = false
@@ -300,6 +329,10 @@ func (rf *Raft) ProcessAppendEntriesRequest(args *AppendEntriesArgs) (*AppendEnt
 		Success: true,
 		Term:    rf.currentTerm,
 	}
+	defer func() {
+		Dprintf("[HeartBeat] Recevied S%d -> S%d\n", args.LeaderId, rf.me)
+	}()
+	//rf.PrintState("Handle AER", true)
 	if args.Term < rf.currentTerm {
 		reply.Success = false
 		reply.State = ShouldUpdateTerm
@@ -391,19 +424,30 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, respChan chan
 		ok = rf.peers[server].Call("Raft.RequestVoteHandler", args, reply)
 	}
 	//DPrintf("S%d Got RequestVote Reply: %+v", rf.me, reply)
-	respChan <- reply
+	if rf.state == Candidate {
+		respChan <- reply
+	}
+
 	return true
 }
 
-func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs) bool {
+func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, HeartBeat bool) bool {
 	reply := &AppendEntriesReply{}
-	for ok := rf.peers[server].Call("Raft.AppendEntriesHandler", args, reply); !ok; {
-		if rf.killed() {
-			return false
-		}
-		ok = rf.peers[server].Call("Raft.AppendEntriesHandler", args, reply)
+	if rf.currentTerm != args.Term {
+		return false
 	}
-	rf.ch <- &ev{target: reply}
+	ch := make(chan bool, 1)
+	overtime := HearBeatTime
+	if !HeartBeat {
+		overtime = 2 * ElectionTimeout
+	}
+	timer := time.NewTimer(overtime)
+	select {
+	case <-timer.C:
+		return false
+	case ch <- rf.peers[server].Call("Raft.AppendEntriesHandler", args, reply):
+		rf.ch <- &ev{target: reply, ch: make(chan error, 1)}
+	}
 	return true
 }
 
@@ -412,8 +456,10 @@ func (rf *Raft) sendHeartBeat(server int, args *AppendEntriesArgs) {
 		if rf.killed() {
 			return
 		}
-		rf.sendAppendEntries(server, args)
-		time.Sleep(HearBeatTime)
+		Dprintf("[HeartBeat] S%d -> S%d\n", rf.me, server)
+		timer := time.NewTimer(HearBeatTime)
+		go rf.sendAppendEntries(server, args, true)
+		<-timer.C
 	}
 }
 
@@ -422,7 +468,7 @@ func (rf *Raft) FollowerEvent() {
 	rf.ResetTime(RandTime())
 	for rf.state == Follower {
 		update := false
-		var err error
+		var err error = nil
 		// 只要执行了非超时的 case，就会重新执行一次for循环
 		select {
 		// TODO: killed
@@ -441,10 +487,8 @@ func (rf *Raft) FollowerEvent() {
 			e.ch <- err
 		case <-rf.timer.C:
 			rf.ToCandidate()
-		default:
-			if rf.killed() {
-				break
-			}
+		case <-rf.killedCh:
+			break
 		}
 		if update {
 			//since = time.Now()
@@ -483,7 +527,7 @@ func (rf *Raft) CandidateEvent() {
 			}
 			voteCount = 1
 			doVote = false
-			rf.ResetTime(RandTime() + 50*time.Millisecond)
+			rf.ResetTime(RandTime())
 		}
 		if voteCount*2 > len(rf.peers) {
 			rf.ToLeader()
@@ -500,7 +544,7 @@ func (rf *Raft) CandidateEvent() {
 				DPrintf("S%d VoteCnt=%d\n", rf.me, voteCount)
 			}
 		case e := <-rf.ch:
-			var err error
+			var err error = nil
 			switch req := e.target.(type) {
 			case *RequestVoteArgs:
 				e.returnValue, _ = rf.ProcessRequestVoteRequest(req)
@@ -512,10 +556,8 @@ func (rf *Raft) CandidateEvent() {
 			e.ch <- err
 		case <-rf.timer.C:
 			doVote = true
-		default:
-			if rf.killed() {
-				break
-			}
+		case <-rf.killedCh:
+			break
 		}
 	}
 }
@@ -543,25 +585,7 @@ func (rf *Raft) LeaderEvent() {
 		}(i)
 	}
 	for rf.state == Leader {
-		term = rf.currentTerm
-		for i := 0; i < len(rf.peers); i++ {
-			if i == rf.me {
-				continue
-			}
-			go func(server int) {
-				// TODO 封装
-				args := &AppendEntriesArgs{
-					Term:         term,
-					LeaderId:     rf.me,
-					PrevLogIndex: NULL,
-					PrevLogTerm:  NULL,
-					Entries:      nil,
-					LeaderCommit: rf.commitIndex,
-				}
-				rf.sendAppendEntries(server, args)
-			}(i)
-		}
-		var err error
+		var err error = nil
 		select {
 		// TODO: 处理 killed
 		case e := <-rf.ch:
@@ -572,14 +596,12 @@ func (rf *Raft) LeaderEvent() {
 				e.returnValue, _ = rf.ProcessRequestVoteRequest(req)
 			case *AppendEntriesReply: // 响应 AppendEntriesReply
 				rf.ProcessAppendEntriesReply(req)
-			default: // 处理命令
-				err = nil
+				//default: // 处理命令
+				//	err = nil
 			}
 			e.ch <- err
-		default:
-			if rf.killed() {
-				break
-			}
+		case <-rf.killedCh:
+			break
 		}
 	}
 }
@@ -615,15 +637,6 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	return index, term, isLeader
 }
 
-func (rf *Raft) PrintState(pos string, ok bool) {
-	if ok {
-		//fmt.Printf("[%s] Server#%d %s Term=%d comIndex=%d lastApp=%d lastTerm=%d Logs=%+v\n",
-		//	pos, rf.me, rf.state, rf.currentTerm, rf.commitIndex, rf.lastApplied, rf.lastLogTerm, rf.logs)
-		fmt.Printf("[%s] S%d %s Term=%d VotedFor=%d\n",
-			pos, rf.me, rf.state, rf.currentTerm, rf.votedFor)
-	}
-}
-
 // the tester doesn't halt goroutines created by Raft after each test,
 // but it does call the Kill() method. your code can use killed() to
 // check whether Kill() has been called. the use of atomic avoids the
@@ -636,6 +649,7 @@ func (rf *Raft) PrintState(pos string, ok bool) {
 func (rf *Raft) Kill() {
 	atomic.StoreInt32(&rf.dead, 1)
 	// Your code here, if desired.
+	rf.killedCh <- rf.dead
 	DPrintf("server#%d killed", rf.me)
 }
 
@@ -646,7 +660,7 @@ func (rf *Raft) killed() bool {
 
 // TODO: 实现 election
 
-func (rf *Raft) ticker() {
+func (rf *Raft) Loop() {
 	for rf.killed() == false {
 		// Your code here (2A)
 		// Check if a leader election should be started.
@@ -682,6 +696,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 		me:          me,
 		ch:          make(chan *ev, 256),
 		state:       Follower,
+		killedCh:    make(chan int32, 1),
 		currentTerm: 0,
 		votedFor:    -1,
 		logs:        make([]Log, 0),
@@ -702,14 +717,13 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.readPersist(persister.ReadRaftState())
 	rf.PrintState("Make", true)
 
-	// start ticker goroutine to start elections
-	go rf.ticker()
+	go rf.Loop()
 
 	return rf
 }
 
 func RandTime() time.Duration {
-	ms := 200 + (rand.Int63() % 200)
+	ms := ElectionTimeout + (rand.Int63() % ElectionTimeout)
 	return time.Duration(ms) * time.Millisecond
 }
 
@@ -717,3 +731,33 @@ func RandTimer() <-chan time.Time {
 	timer := time.NewTimer(RandTime())
 	return timer.C
 }
+
+func (rf *Raft) PrintState(pos string, ok bool) {
+	if !Debug {
+		ok = false
+	}
+	if ok {
+		//fmt.Printf("[%s] Server#%d %s Term=%d comIndex=%d lastApp=%d lastTerm=%d Logs=%+v\n",
+		//	pos, rf.me, rf.state, rf.currentTerm, rf.commitIndex, rf.lastApplied, rf.lastLogTerm, rf.logs)
+		fmt.Printf("[%s] S%d %s Term=%d VotedFor=%d\n",
+			pos, rf.me, rf.state, rf.currentTerm, rf.votedFor)
+	}
+}
+
+//for i := 0; i < len(rf.peers); i++ {
+//	if i == rf.me {
+//		continue
+//	}
+//	go func(server int) {
+//		// TODO 封装
+//		args := &AppendEntriesArgs{
+//			Term:         term,
+//			LeaderId:     rf.me,
+//			PrevLogIndex: NULL,
+//			PrevLogTerm:  NULL,
+//			Entries:      nil,
+//			LeaderCommit: rf.commitIndex,
+//		}
+//		rf.sendAppendEntries(server, args)
+//	}(i)
+//}

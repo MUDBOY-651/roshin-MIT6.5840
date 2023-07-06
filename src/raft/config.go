@@ -354,7 +354,7 @@ func (cfg *config) cleanup() {
 
 // attach server i to the net.
 func (cfg *config) connect(i int) {
-	ImportantInfo("connect(%d)\n", i)
+	DPrintf("Connect (%d)\n", i)
 
 	cfg.connected[i] = true
 
@@ -479,6 +479,7 @@ func (cfg *config) checkNoLeader() {
 		if cfg.connected[i] {
 			_, is_leader := cfg.rafts[i].GetState()
 			if is_leader {
+				//log.Printf("[Error] S%d shouldn't be Leader\n", i)
 				cfg.t.Fatalf("expected no leader among connected servers, but %v claims to be leader", i)
 			}
 		}
