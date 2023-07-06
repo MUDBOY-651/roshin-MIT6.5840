@@ -1,5 +1,9 @@
 package raft
 
+// TODO:
+// 加锁， 封装 Getxx方法
+// processAppendEntriesReply, Commit
+
 //
 // this is an outline of the API that raft must expose to
 // the service (or tester). see comments below for
@@ -40,6 +44,9 @@ const (
 	NULL                            = 0
 	ElectionTimeoutThresholdPercent = 0.8
 )
+
+type SendLog struct {
+}
 
 func (rf *Raft) ToCandidate() {
 	// TODO
@@ -104,8 +111,6 @@ func (rf *Raft) UpdateCurrentTerm(term int) {
 // snapshots) on the applyCh, but set CommandValid to false for these
 // other uses.
 
-type ClientCommand interface{}
-
 type ApplyMsg struct {
 	CommandValid bool
 	Command      interface{}
@@ -120,7 +125,7 @@ type ApplyMsg struct {
 
 type Log struct {
 	Term    int
-	Command ClientCommand
+	Command interface{}
 }
 
 // 用于包装一个请求或响应
@@ -132,13 +137,14 @@ type ev struct {
 
 // A Go object implementing a single Raft peer.
 type Raft struct {
-	mu        sync.Mutex          // Lock to protect shared access to this peer's state
+	lock      sync.RWMutex
 	peers     []*labrpc.ClientEnd // RPC end points of all peers
 	persister *Persister          // Object to hold this peer's persisted state
 	me        int                 // this peer's index into peers[]
 	dead      int32               // set by Kill()
 	killedCh  chan int32
-
+	NewLogCh  chan *Log
+	msgCh     chan ApplyMsg
 	//
 	ch chan *ev
 	// Your data here (2A, 2B, 2C).
@@ -253,8 +259,9 @@ type AppendEntriesReply struct {
 }
 
 func (rf *Raft) AppendLog(pLog *Log) bool {
-	rf.logs = append(rf.logs, *pLog)
 	rf.lastApplied++
+	rf.logs = append(rf.logs, *pLog)
+	rf.lastLogTerm = rf.currentTerm
 	return true
 }
 
@@ -309,6 +316,29 @@ func (rf *Raft) ProcessRequestVoteRequest(args *RequestVoteArgs) (*RequestVoteRe
 	DPrintf("Vote From S%d to S%d Original Reply=%+v\n", rf.me, args.CandidateId, reply)
 	rf.votedFor = args.CandidateId
 	return reply, true
+}
+
+// invoked by ProcessAppendEntriesReply
+func (rf *Raft) CommitLog(msg []ApplyMsg) {
+	//rf.msgCh<-
+}
+
+// ProcessNewLog另启go routine
+// 追加日志->发送请求到管道 rf.ch-> 从rf.ch接收事件, 向不同server调用sendAppendEntries
+func (rf *Raft) ProcessNewLog() {
+	term := rf.currentTerm
+	var wg sync.WaitGroup
+	for server := 0; server < len(rf.peers); server++ {
+		if server == rf.me {
+			continue
+		}
+		go func() {
+			wg.Add(1)
+			rf.sendAppendEntries(server, &AppendEntriesArgs{Term: term}, false)
+			wg.Done()
+		}()
+	}
+	wg.Wait()
 }
 
 // RPC Handler
@@ -412,7 +442,8 @@ func (rf *Raft) ProcessAppendEntriesReply(reply *AppendEntriesReply) {
 	if reply.Term > rf.currentTerm {
 		rf.ToFollower(reply.Term)
 	}
-	// TODO LOG
+	// TODO: Check whether log can be committed
+	// rf.
 }
 
 func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, respChan chan *RequestVoteReply) bool {
@@ -436,17 +467,29 @@ func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, HeartBeat
 	if rf.currentTerm != args.Term {
 		return false
 	}
+	args.LeaderId = rf.me
+	if rf.nextIndex[server] <= rf.lastApplied {
+		args.PrevLogIndex = rf.nextIndex[server]
+		args.PrevLogTerm = rf.logs[rf.nextIndex[server]].Term
+	}
+	args.LeaderCommit = rf.commitIndex
+
 	ch := make(chan bool, 1)
 	overtime := HearBeatTime
 	if !HeartBeat {
 		overtime = 2 * ElectionTimeout
 	}
 	timer := time.NewTimer(overtime)
-	select {
-	case <-timer.C:
-		return false
-	case ch <- rf.peers[server].Call("Raft.AppendEntriesHandler", args, reply):
-		rf.ch <- &ev{target: reply, ch: make(chan error, 1)}
+	for rf.state == Leader {
+		select {
+		case <-timer.C:
+			return false
+		case ch <- rf.peers[server].Call("Raft.AppendEntriesHandler", args, reply):
+			if ok := <-ch; ok {
+				rf.ch <- &ev{target: reply, ch: make(chan error, 1)}
+				return true
+			}
+		}
 	}
 	return true
 }
@@ -463,7 +506,7 @@ func (rf *Raft) sendHeartBeat(server int, args *AppendEntriesArgs) {
 	}
 }
 
-func (rf *Raft) FollowerEvent() {
+func (rf *Raft) FollowerLoop() {
 	//since := time.Now()
 	rf.ResetTime(RandTime())
 	for rf.state == Follower {
@@ -498,7 +541,7 @@ func (rf *Raft) FollowerEvent() {
 	}
 }
 
-func (rf *Raft) CandidateEvent() {
+func (rf *Raft) CandidateLoop() {
 	doVote := true
 	respChan := make(chan *RequestVoteReply, len(rf.peers))
 	voteCount := 0
@@ -562,7 +605,7 @@ func (rf *Raft) CandidateEvent() {
 	}
 }
 
-func (rf *Raft) LeaderEvent() {
+func (rf *Raft) LeaderLoop() {
 	if rf.killed() {
 		return
 	}
@@ -596,8 +639,9 @@ func (rf *Raft) LeaderEvent() {
 				e.returnValue, _ = rf.ProcessRequestVoteRequest(req)
 			case *AppendEntriesReply: // 响应 AppendEntriesReply
 				rf.ProcessAppendEntriesReply(req)
-				//default: // 处理命令
-				//	err = nil
+			case *SendLog:
+				// 能不能 go ?
+				go rf.ProcessNewLog()
 			}
 			e.ch <- err
 		case <-rf.killedCh:
@@ -623,18 +667,14 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	term := -1
 	isLeader := true
 	// Your code here (2B).
-	rf.mu.Lock()
-	defer rf.mu.Unlock()
 	if rf.state != Leader {
 		isLeader = false
 		return index, term, isLeader
 	}
-	rf.lastApplied++
-	index = rf.lastApplied
-	term = rf.currentTerm
-	rf.lastLogTerm = term
-	rf.logs = append(rf.logs, Log{term, command})
-	return index, term, isLeader
+	newLog := &Log{term, command}
+	rf.AppendLog(newLog)
+	rf.ch <- &ev{target: &SendLog{}, ch: make(chan error, 1)}
+	return rf.lastApplied, rf.currentTerm, isLeader
 }
 
 // the tester doesn't halt goroutines created by Raft after each test,
@@ -669,11 +709,11 @@ func (rf *Raft) Loop() {
 		}
 		switch rf.state {
 		case Follower:
-			rf.FollowerEvent()
+			rf.FollowerLoop()
 		case Candidate:
-			rf.CandidateEvent()
+			rf.CandidateLoop()
 		case Leader:
-			rf.LeaderEvent()
+			rf.LeaderLoop()
 		}
 	}
 }
@@ -695,6 +735,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 		persister:   persister,
 		me:          me,
 		ch:          make(chan *ev, 256),
+		NewLogCh:    make(chan *Log, 1024),
 		state:       Follower,
 		killedCh:    make(chan int32, 1),
 		currentTerm: 0,
@@ -716,7 +757,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	// initialize from state persisted before a crash
 	rf.readPersist(persister.ReadRaftState())
 	rf.PrintState("Make", true)
-
+	rf.msgCh = applyCh
 	go rf.Loop()
 
 	return rf
