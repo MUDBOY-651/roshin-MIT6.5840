@@ -1,7 +1,7 @@
 package raft
 
 // TODO:
-// processAppendEntriesReply, Commit
+// MatchIndex and NextIndex, what's the connection between them?
 
 //
 // this is an outline of the API that raft must expose to
@@ -40,6 +40,7 @@ const (
 	HearBeatTime                    = 250 * time.Millisecond
 	ElectionTimeout                 = 300
 	ShouldUpdateTerm                = "ShouldUpdateTerm"
+  Inconsistency                   = "Inconsistency"
 	NULL                            = 0
 	ElectionTimeoutThresholdPercent = 0.8
 )
@@ -174,11 +175,11 @@ func (rf *Raft) SetLastInfo(lastLogIndex, lastLogTerm int) {
   rf.lastLogTerm = lastLogTerm
 }
 
-func (rf *Raft) SetIndexInfo(server, newNextIndex, newMatchIndex int) {
+func (rf *Raft) SetIndexInfo(server, valIndex, valMatch int) {
   rf.lock.Lock()
   defer rf.lock.Unlock()
-  rf.nextIndex[server] = newNextIndex
-  rf.matchIndex[server] = newMatchIndex
+  rf.nextIndex[server] += valIndex
+  rf.matchIndex[server] += valMatch
 }
 
 func (rf *Raft) SetVotedFor(newVotedFor int) {
@@ -341,6 +342,7 @@ type AppendEntriesArgs struct {
 }
 
 type AppendEntriesReply struct {
+  Server int
 	Term    int
 	Success bool
 	State   string
@@ -353,8 +355,11 @@ func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, HeartBeat
 	}
 	args.LeaderId = rf.me
 	if rf.nextIndex[server] <= rf.lastApplied {
-		args.PrevLogIndex = rf.nextIndex[server]
-		args.PrevLogTerm = rf.logs[rf.nextIndex[server]].Term
+		args.PrevLogIndex = rf.nextIndex[server] - 1
+		args.PrevLogTerm = rf.logs[args.PrevLogIndex].Term
+    if (!HeartBeat) {
+      args.Entries = rf.logs[args.PrevLogIndex:]
+    }
 	}
 	args.LeaderCommit = rf.GetCommitIndex()
 
@@ -414,11 +419,6 @@ decrement nextIndex and retry (§5.3)
 of matchIndex[i] ≥ N, and log[N].term == currentTerm: set commitIndex = N (§5.3, §5.4).
 */
 
-// invoked by ProcessAppendEntriesReply
-func (rf *Raft) CommitLog(msg []ApplyMsg) {
-	//rf.msgCh<-
-}
-
 // ProcessNewLog另启go routine
 // 接收客户端命令追加日志->发送请求到管道 rf.ch-> 从rf.ch接收事件, 向不同server调用sendAppendEntries
 func (rf *Raft) ProcessNewLog() {
@@ -430,7 +430,12 @@ func (rf *Raft) ProcessNewLog() {
 		}
 		go func(server int) {
 			wg.Add(1)
-			rf.sendAppendEntries(server, &AppendEntriesArgs{Term: term}, false)
+			rf.sendAppendEntries(server, &AppendEntriesArgs{
+        LeaderId: rf.me,
+        Term: term,
+        LeaderCommit: rf.GetCommitIndex(),
+        },
+        false)
 			wg.Done()
 		}(i)
 	}
@@ -438,11 +443,47 @@ func (rf *Raft) ProcessNewLog() {
 }
 
 func (rf *Raft) ProcessAppendEntriesReply(reply *AppendEntriesReply) {
-	if reply.Term > rf.GetCurrnetTerm() {
+	if reply.State == ShouldUpdateTerm {
 		rf.ToFollower(reply.Term)
+    return 
 	}
+  if reply.State == Inconsistency {
+    rf.SetIndexInfo(reply.Server, -1, 0)
+    return 
+  }
+  // 成功，matchIndex++ 和 nextIndex++
+  // 否则，nextIndex--
+  if reply.Success {
+    rf.lock.Lock()
+    rf.SetIndexInfo(reply.Server, 1, 1)
+    N := rf.matchIndex[reply.Server]
 	// TODO: Check whether log can be committed
-	// rf.
+    if N > rf.commitIndex && rf.logs[N].Term == rf.currentTerm {
+      cnt := 1
+      var wg sync.WaitGroup
+      var lk sync.Mutex
+      for i := 0; i < len(rf.peers); i++ {
+        if i == rf.me {
+          continue
+        }
+        go func(server int) {
+          wg.Add(1)
+          if rf.matchIndex[server] >= N {
+            lk.Lock()
+            cnt++
+            lk.Unlock()
+          }
+        }(i)
+      }
+      wg.Wait()
+      if cnt * 2 > len(rf.peers) {
+        rf.commitIndex = N
+      }
+    }
+    rf.lock.Unlock()
+  } else {
+    rf.SetIndexInfo(reply.Server, -1, 0)
+  }
 }
 
 // RPC Handler
@@ -461,6 +502,7 @@ func (rf *Raft) AppendEntriesHandler(args *AppendEntriesArgs, reply *AppendEntri
 
 func (rf *Raft) ProcessAppendEntriesRequest(args *AppendEntriesArgs) (*AppendEntriesReply, bool) {
 	reply := &AppendEntriesReply{
+    Server: rf.me, 
 		Success: true,
 		Term:    rf.currentTerm,
 	}
@@ -481,23 +523,21 @@ func (rf *Raft) ProcessAppendEntriesRequest(args *AppendEntriesArgs) (*AppendEnt
 	}
   rf.SetLeaderID(args.LeaderId)
 	// TODO
-	/*
-		if rf.lastApplied < args.PrevLogIndex || rf.logs[args.PrevLogIndex].Term != args.PrevLogTerm {
-			reply.Success = false
-			if rf.lastApplied >= args.PrevLogIndex {
-				rf.logs = rf.logs[1:args.PrevLogIndex]
-				rf.lastApplied = args.PrevLogIndex - 1
-				for _, log_ := range args.Entries {
-					if !rf.AppendLog(&log_) {
-						log.Printf("Append LOG: %+v Failed", log_)
-					}
-				}
-			}
-		}
-		if args.LeaderCommit > rf.commitIndex {
-			rf.commitIndex = min(args.LeaderCommit, rf.lastApplied)
-		}
-	*/
+  if rf.lastApplied < args.PrevLogIndex || rf.logs[args.PrevLogIndex].Term != args.PrevLogTerm {
+    reply.Success = false
+    if rf.lastApplied >= args.PrevLogIndex {
+      rf.logs = rf.logs[1:args.PrevLogIndex]
+      rf.lastApplied = args.PrevLogIndex - 1
+      for _, log_ := range args.Entries {
+        rf.AppendLog(&log_)
+      }
+    } else {
+      reply.State = Inconsistency
+    }
+  }
+  if args.LeaderCommit > rf.commitIndex {
+    rf.commitIndex = min(args.LeaderCommit, rf.lastApplied)
+  }
 	return reply, true
 }
 
