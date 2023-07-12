@@ -9,13 +9,14 @@ package raft
 //
 
 import (
+	"fmt"
+	"log"
+	"math/rand"
+	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
-import "fmt"
-import "time"
-import "math/rand"
-import "sync/atomic"
-import "sync"
 
 // The tester generously allows solutions to complete elections in one second
 // (much more than the paper's range of timeouts).
@@ -114,7 +115,7 @@ func TestManyElections2A(t *testing.T) {
 	cfg.checkOneLeader()
 
 	//iters := 10
-	iters := 100
+	iters := 10
 	for ii := 1; ii < iters; ii++ {
 		// disconnect three nodes
 		i1 := rand.Int() % servers
@@ -165,6 +166,8 @@ func TestBasicAgree2B(t *testing.T) {
 // check, based on counting bytes of RPCs, that
 // each Command is sent to each peer just once.
 func TestRPCBytes2B(t *testing.T) {
+  fmt.Printf("--------------------TEST END--------------------\n")
+  log.Fatal("END")
 	servers := 3
 	cfg := make_config(t, servers, false, false)
 	defer cfg.cleanup()

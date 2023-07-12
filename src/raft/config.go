@@ -508,6 +508,7 @@ func (cfg *config) nCommitted(index int) (int, interface{}) {
 			cmd = cmd1
 		}
 	}
+  //DPrintf("COM: %v Commited cnt=%d\n", cmd, count)
 	return count, cmd
 }
 

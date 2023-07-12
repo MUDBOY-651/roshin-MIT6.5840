@@ -1,0 +1,37 @@
+2023/07/13 01:50:20 disconnect(0)
+[Make] S0 Follower Term=0 lastApplied=0
+2023/07/13 01:50:20 disconnect(1)
+[Make] S1 Follower Term=0 lastApplied=0
+2023/07/13 01:50:20 disconnect(2)
+[Make] S2 Follower Term=0 lastApplied=0
+2023/07/13 01:50:20 Connect (0)
+2023/07/13 01:50:20 Connect (1)
+2023/07/13 01:50:20 Connect (2)
+Test (2B): basic agreement ...
+[Election] S2 Candidate Term=1 lastApplied=0
+2023/07/13 01:50:20 S2 Got 1 Vote
+2023/07/13 01:50:20 S2 VoteCnt=2
+[Leader Changed]S2 -> Leader Term:1
+[LockInfo] LINE:453 Try Lock
+[INFO] to S1 index=1 lastIndex=1
+[LockInfo] LINE:453 Try Lock
+[INFO] to S0 index=1 lastIndex=1
+[LockInfo] LINE:469 Try Lock
+[LockInfo] LINE:469 Try Lock
+[LockInfo] LINE:661 Try Lock
+[LockInfo] LINE:661 Try Lock
+2023/07/13 01:50:20 AppendEntries Recevied S2 -> S1
+args:&{Term:1 LeaderId:2 PrevLogIndex:1 PrevLogTerm:1 Entries:[{Term:1 Command:100}] LeaderCommit:0}
+reply:&{Server:1 LastLogIndex:0 Term:1 Success:false State:Inconsistency HeartBeat:false}
+2023/07/13 01:50:20 AppendEntries Recevied S2 -> S0
+args:&{Term:1 LeaderId:2 PrevLogIndex:1 PrevLogTerm:1 Entries:[{Term:1 Command:100}] LeaderCommit:0}
+reply:&{Server:0 LastLogIndex:0 Term:1 Success:false State:Inconsistency HeartBeat:false}
+2023/07/13 01:50:22 server#0 killed
+2023/07/13 01:50:22 server#1 killed
+2023/07/13 01:50:22 server#2 killed
+--- FAIL: TestBasicAgree2B (2.37s)
+    config.go:597: one(100) failed to reach agreement
+--------------------TEST END--------------------
+2023/07/13 01:50:22 END
+exit status 1
+FAIL	6.5840/raft	2.515s
