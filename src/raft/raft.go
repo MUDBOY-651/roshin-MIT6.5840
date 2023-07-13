@@ -478,7 +478,6 @@ func (rf *Raft) ProcessAppendEntriesReply(reply *AppendEntriesReply) {
     // CheckCommit
     for N := rf.matchIndex[reply.Server]; N > rf.commitIndex && rf.logs[N].Term == rf.currentTerm; N-- {
       cnt := 1
-      var wg sync.WaitGroup
       for i := 0; i < len(rf.peers); i++ {
         if i != rf.me && rf.matchIndex[i] >= N {
           cnt++
@@ -486,13 +485,8 @@ func (rf *Raft) ProcessAppendEntriesReply(reply *AppendEntriesReply) {
       }
       if cnt * 2 > len(rf.peers) {
         for i := rf.commitIndex + 1; i <= N; i++ {
-          go func(idx int) {
-            wg.Add(1)
-            rf.Commit(idx)
-            wg.Done()
-          }(i)
+          rf.Commit(i)
         }
-        wg.Wait()
         rf.commitIndex = N
         break
       }
