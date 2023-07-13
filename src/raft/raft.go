@@ -1,6 +1,8 @@
 package raft
 
-// TODO:
+// TODO: 
+// idx = 7 的指令 FOLLOWER有冗余， leader却没有
+// 还要查下test里为什么出错
 
 //
 // this is an outline of the API that raft must expose to
@@ -36,7 +38,7 @@ const (
 	Leader                          = "Leader"
 	Follower                        = "Follower"
 	Candidate                       = "Candidate"
-	HearBeatTime                    = 100 * time.Millisecond
+	HearBeatTime                    = 200 * time.Millisecond
 	ElectionTimeout                 = 500
 	ShouldUpdateTerm                = "ShouldUpdateTerm"
   Inconsistency                   = "Inconsistency"
@@ -538,17 +540,11 @@ func (rf *Raft) ProcessAppendEntriesRequest(args *AppendEntriesArgs) (*AppendEnt
     defer rf.lock.Unlock()
     if args.LeaderCommit > rf.commitIndex {
       newCommitIndex := min(args.LeaderCommit, rf.lastApplied)
-      var wg sync.WaitGroup
       for i := rf.commitIndex + 1; i <= newCommitIndex; i++ {
-        go func(idx int) {
-          wg.Add(1)
-          rf.Commit(idx)
-          wg.Done()
-        }(i)
+        rf.Commit(i)
       }
       // panic: sync: WaitGroup is reused before previous Wait has returned
       rf.commitIndex = newCommitIndex
-      wg.Wait()
     }
 	}()
 	//rf.PrintState("Handle AER", true)

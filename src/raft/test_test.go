@@ -326,7 +326,6 @@ func TestFailAgree2B(t *testing.T) {
 	// previous agreements, and be able to agree
 	// on new commands.
 	cfg.one(106, servers, true)
-  return
   fmt.Printf("OK\n")
 	time.Sleep(RaftElectionTimeout)
 	cfg.one(107, servers, true)

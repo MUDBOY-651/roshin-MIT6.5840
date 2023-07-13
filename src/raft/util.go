@@ -7,9 +7,9 @@ import (
 )
 
 // Debugging
-//const Debug = false
+const Debug = false
 
-const Debug = true
+//const Debug = true
 
 var void interface{}
 
