@@ -7,9 +7,9 @@ import (
 )
 
 // Debugging
-const Debug = true
-
 //const Debug = false
+
+const Debug = true
 
 var void interface{}
 
@@ -44,13 +44,13 @@ func PrintLockInfo (v interface{}) {
 
 //const DEBUG_TEST = true
 
-const DEBUG_TEST = false
+const DEBUG_TEST = true
 
 
 func ImportantInfo(format string, a ...interface{}) {
 	if DEBUG_TEST {
 		fmt.Printf("---------------------------------------------------------------\n")
-		log.Printf(format, a...)
+		fmt.Printf(format, a...)
 		fmt.Printf("---------------------------------------------------------------\n")
 	}
 }

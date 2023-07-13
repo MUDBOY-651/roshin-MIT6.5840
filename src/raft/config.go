@@ -578,6 +578,7 @@ func (cfg *config) one(cmd interface{}, expectedServers int, retry bool) int {
 			}
 		}
 
+    // index = 日志应该在的位置
 		if index != -1 {
 			// somebody claimed to be the leader and to have
 			// submitted our Command; wait a while for agreement.
