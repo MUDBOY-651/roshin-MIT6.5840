@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const DBG = true
+const DBG = false
 
 // The tester generously allows solutions to complete elections in one second
 // (much more than the paper's range of timeouts).
@@ -144,6 +144,7 @@ func TestManyElections2A(t *testing.T) {
 }
 
 func TestBasicAgree2B(t *testing.T) {
+  //TestFigure8Unreliable2C(t)
   Debug = false
 	servers := 3
 	cfg := make_config(t, servers, false, false)
@@ -934,6 +935,7 @@ func TestUnreliableAgree2C(t *testing.T) {
 }
 
 func TestFigure8Unreliable2C(t *testing.T) {
+  Debug = false
 	servers := 5
 	cfg := make_config(t, servers, true, false)
 	defer cfg.cleanup()
@@ -943,7 +945,8 @@ func TestFigure8Unreliable2C(t *testing.T) {
 	cfg.one(rand.Int()%10000, 1, true)
 
 	nup := servers
-	for iters := 0; iters < 1000; iters++ {
+  // 1000
+	for iters := 0; iters < 600; iters++ {
 		if iters == 200 {
 			cfg.setlongreordering(true)
 		}

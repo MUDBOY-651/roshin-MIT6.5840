@@ -38,15 +38,13 @@ const (
 	Follower                        = "Follower"
 	Candidate                       = "Candidate"
 	HearBeatTime                    = 100 * time.Millisecond
-	ElectionTimeout                 = 500
+	ElectionTimeout                 = 400
 	ShouldUpdateTerm                = "ShouldUpdateTerm"
   Inconsistency                   = "Inconsistency"
 	NULL                            = 0
 	ElectionTimeoutThresholdPercent = 0.8
 )
 
-type SendLog struct {
-}
 
 type Retry struct {
   server int
@@ -123,6 +121,7 @@ type Raft struct {
 	leaderID   int
   cond *sync.Cond
   lk sync.Mutex
+  Wg sync.WaitGroup
 }
 
 func (rf *Raft) GetRaftState() string {
@@ -356,7 +355,6 @@ type AppendEntriesArgs struct {
 	PrevLogTerm  int
 	Entries      []Log // empty for heartbeat
 	LeaderCommit int   // leader's commitIndex
-  HeartBeat bool
 }
 
 type AppendEntriesReply struct {
@@ -365,7 +363,6 @@ type AppendEntriesReply struct {
   Server int
   LastLogIndex int
 	State   string
-  HeartBeat bool
 }
 
 func (rf *Raft) Commit(idx int) {
@@ -381,32 +378,18 @@ func (rf *Raft) Commit(idx int) {
 }
 
 
-func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs, HeartBeat bool) bool {
+func (rf *Raft) sendAppendEntries(server int, args *AppendEntriesArgs) bool {
 	reply := &AppendEntriesReply{}
-  args.HeartBeat = HeartBeat
- /* if rf.GetCurrnetTerm() != args.Term {*/
-		/*return false*/
-	/*}*/
 	args.LeaderId = rf.me
-    //PrintLockInfo(NULL)
   rf.lock.RLock()
-  if !HeartBeat {
+  if len(args.Entries) > 0 {
     Dprintf("[INFO] to S%d index=%d lastIndex=%d\n", server,rf.nextIndex[server], rf.lastLogIndex)
   }
   if rf.nextIndex[server] <= rf.lastLogIndex + 1{
-    /*
     args.PrevLogIndex = rf.nextIndex[server] - 1
     args.PrevLogTerm = rf.logs[args.PrevLogIndex].Term
-    for i := args.PrevLogIndex; i < len(rf.logs); i++ {
+    for i := rf.nextIndex[server]; i < len(rf.logs); i++ {
       args.Entries = append(args.Entries, rf.logs[i])
-    }
-    */
-    args.PrevLogIndex = rf.nextIndex[server] - 1
-    args.PrevLogTerm = rf.logs[args.PrevLogIndex].Term
-    if !HeartBeat {
-      for i := rf.nextIndex[server]; i < len(rf.logs); i++ {
-        args.Entries = append(args.Entries, rf.logs[i])
-      }
     }
   }
   rf.lock.RUnlock()
@@ -426,7 +409,7 @@ func (rf *Raft) sendHeartBeat(server int) {
 			return
 		}
 		timer := time.NewTimer(HearBeatTime)
-		go rf.sendAppendEntries(server, rf.InitArgs(), true)
+		go rf.sendAppendEntries(server, rf.InitArgs())
 		<-timer.C
 	}
 }
@@ -442,14 +425,15 @@ func (rf *Raft) AppendLog(pLog *Log) bool {
       DPrintf("LOG DIFF: last=%d rf.Log=%+v pLog=%+v\n", rf.lastLogIndex, rf.logs[pLog.Index], pLog)
       rf.logs = rf.logs[0: pLog.Index]
       rf.lastLogIndex = len(rf.logs) - 1
-      rf.AppendLog(pLog)
-      //log.Fatal("Log DIFF")
+      return rf.AppendLog(pLog)
     } else {
       DPrintf("EXISTED Log:%+v\n", pLog)
+      return false
     }
   } else {
     fmt.Printf("last=%d pLog=%v\n", rf.lastLogIndex, pLog)
     log.Fatal("Log DIFF")
+    return false
   }
 	return true
 }
@@ -457,8 +441,6 @@ func (rf *Raft) AppendLog(pLog *Log) bool {
 // ProcessNewLog另启go routine
 // 接收客户端命令追加日志->发送请求到管道 rf.ch-> 从rf.ch接收事件, 向不同server调用sendAppendEntries
 func (rf *Raft) ProcessNewLog() {
-	term := rf.GetCurrnetTerm()
-  leaderCommit := rf.GetCommitIndex()
 	var wg sync.WaitGroup
 	for i := 0; i < len(rf.peers); i++ {
 		if i == rf.me {
@@ -466,12 +448,9 @@ func (rf *Raft) ProcessNewLog() {
 		}
     wg.Add(1)
 		go func(server int) {
-			rf.sendAppendEntries(server, &AppendEntriesArgs{
-        LeaderId: rf.me,
-        Term: term,
-        LeaderCommit: leaderCommit,
-        },
-        false)
+      for ok := rf.sendAppendEntries(server, rf.InitArgs()); !ok; {
+        ok = rf.sendAppendEntries(server, rf.InitArgs())
+      }
 			wg.Done()
 		}(i)
 	}
@@ -479,9 +458,7 @@ func (rf *Raft) ProcessNewLog() {
 }
 
 func (rf *Raft) ProcessAppendEntriesReply(reply *AppendEntriesReply) {
-  if !reply.HeartBeat {
-    Dprintf("[ProcessAppendEntriesReply] S%d Processing reply from S%d\n", rf.me, reply.Server)
-  }
+  Dprintf("[ProcessAppendEntriesReply] S%d Processing reply from S%d\n", rf.me, reply.Server)
 	if reply.State == ShouldUpdateTerm {
     Dprintf("[TurnFollower] S%d ShouldUpdateTerm\n", rf.me)
 		rf.ToFollower(reply.Term)
@@ -494,7 +471,7 @@ func (rf *Raft) ProcessAppendEntriesReply(reply *AppendEntriesReply) {
   }
   // 成功，matchIndex++ 和 nextIndex++
   // 否则，nextIndex--
-  if reply.Success && !reply.HeartBeat {
+  if reply.Success {
     rf.lock.Lock()
     rf.nextIndex[reply.Server] = reply.LastLogIndex + 1
     rf.matchIndex[reply.Server] = reply.LastLogIndex
@@ -533,7 +510,6 @@ func (rf *Raft) AppendEntriesHandler(args *AppendEntriesArgs, reply *AppendEntri
 		reply.Term = temp.Term
 		reply.State = temp.State
 		reply.Success = temp.Success
-    reply.HeartBeat = temp.HeartBeat
     reply.LastLogIndex = temp.LastLogIndex
 	}
   if len(args.Entries) > 0 {
@@ -546,7 +522,6 @@ func (rf *Raft) ProcessAppendEntriesRequest(args *AppendEntriesArgs) (*AppendEnt
     Server: rf.me, 
 		Success: true,
 		Term:    rf.currentTerm,
-    HeartBeat: args.HeartBeat,
 	}
 	defer func() {
     //if !args.HeartBeat {
@@ -600,11 +575,13 @@ func (rf *Raft) ProcessAppendEntriesRequest(args *AppendEntriesArgs) (*AppendEnt
     return reply, false
   }
   rf.lock.Lock()
+  cnt := 0;
   for _, log_ := range args.Entries {
-    rf.AppendLog(&log_)
+    if rf.AppendLog(&log_) {
+      cnt++
+    }
   }
-  reply.LastLogIndex = rf.lastLogIndex
-
+  reply.LastLogIndex = args.PrevLogIndex + cnt
   rf.PrintState(fmt.Sprintf("Recevied S%d AppendEntries", args.LeaderId), false)
   rf.lock.Unlock()
 	return reply, true
@@ -679,16 +656,13 @@ func (rf *Raft) ProcessRequestVoteRequest(args *RequestVoteArgs) (*RequestVoteRe
 		reply.VoteGranted = false
 		return reply, false
 	}
-	// TODO
   if args.LastLogTerm < rf.lastLogTerm || (args.LastLogTerm == rf.lastLogTerm && args.LastLogIndex < rf.lastLogIndex) {
     reply.VoteGranted = false
-    // ???
     return reply, false
   }
   
 	reply.Term = rf.GetCurrnetTerm()
-	//DPrintf("Vote From S%d to S%d Original Reply=%+v\n", rf.me, args.CandidateId, reply)
-	rf.votedFor = args.CandidateId
+  rf.SetVotedFor(args.CandidateId)
 	return reply, true
 }
 
@@ -713,7 +687,6 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, respChan chan
   if !ok {
     Dprintf("[SEND WARN] RequstVote S%d -> S%d FAILED!\n", rf.me, server)
   }
-	//DPrintf("S%d Got RequestVote Reply: %+v", rf.me, reply)
 	if rf.GetRaftState() == Candidate {
 		respChan <- reply
 	}
@@ -723,7 +696,6 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, respChan chan
 
 
 func (rf *Raft) FollowerLoop() {
-	//since := time.Now()
 	rf.ResetTime(RandTime())
 	for rf.state == Follower {
 		update := false
@@ -734,14 +706,9 @@ func (rf *Raft) FollowerLoop() {
 			case *RequestVoteArgs:
 				e.returnValue, update = rf.ProcessRequestVoteRequest(req)
 			case *AppendEntriesArgs:
-				//elapsedTime := time.Now().Sub(since)
-				//if elapsedTime < time.Duration(float64(rf.overtime) * ElectionTimeoutThresholdPercent) {
-				//}
 				e.returnValue, update = rf.ProcessAppendEntriesRequest(req)
 			default:
 				err = nil
-      //case *CommitArgs:
-        //e.returnValue, update = rf.ProcessCommitRequest(req)
 			}
 			e.ch <- err
 		case <-rf.timer.C:
@@ -750,9 +717,7 @@ func (rf *Raft) FollowerLoop() {
 			break
 		}
 		if update {
-			//since = time.Now()
 			rf.ResetTime(RandTime())
-			//rf.PrintState("FollowerUpdate", true)
 		}
 	}
 }
@@ -838,7 +803,6 @@ func (rf *Raft) LeaderLoop() {
 	for rf.state == Leader {
 		var err error = nil
 		select {
-		// TODO: 处理 killed
 		case e := <-rf.ch:
 			switch req := e.target.(type) {
 			case *AppendEntriesArgs:
@@ -847,19 +811,10 @@ func (rf *Raft) LeaderLoop() {
 				e.returnValue, _ = rf.ProcessRequestVoteRequest(req)
 			case *AppendEntriesReply: // 响应 AppendEntriesReply
 				go rf.ProcessAppendEntriesReply(req)
-			case *SendLog:
-				// 能不能 go ?
-				go rf.ProcessNewLog()
       case *Retry:
 				// 能不能 go ?
         DPrintf("Retry S%d -> S%d\n", rf.me, req.server)
-        go rf.sendAppendEntries(req.server, rf.InitArgs(), false)
-      /*
-      case *CommitReply:
-        rf.ProcessCommitReply(req)
-      case *SendCommit:
-        rf.sendCommit(req.server, &CommitArgs{rf.me, req.index, req.term})
-      */
+        go rf.sendAppendEntries(req.server, rf.InitArgs())
 			}
 			e.ch <- err
 		case <-rf.killedCh:
@@ -894,19 +849,9 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 	rf.AppendLog(newLog)
   index = rf.lastLogIndex
   rf.lock.Unlock()
-	rf.ch <- &ev{target: &SendLog{}, ch: make(chan error, 1)}
 	return index, term, isLeader
 }
 
-// the tester doesn't halt goroutines created by Raft after each test,
-// but it does call the Kill() method. your code can use killed() to
-// check whether Kill() has been called. the use of atomic avoids the
-// need for a lock.
-//
-// the issue is that long-running goroutines use memory and may chew
-// up CPU time, perhaps causing later tests to fail and generating
-// confusing debug output. any goroutine with a long-running loop
-// should call killed() to check whether it should stop.
 func (rf *Raft) Kill() {
 	atomic.StoreInt32(&rf.dead, 1)
 	// Your code here, if desired.
@@ -926,16 +871,21 @@ func (rf *Raft) CommitLoop() {
     for idx := rf.lastApplied + 1; idx <= rf.commitIndex; idx ++ {
       rf.Commit(idx)
     }
+    if len(rf.ch) > 0 || len(rf.msgCh) > 0 {
+      fmt.Printf("len=%d %d\n", len(rf.ch), len(rf.msgCh))
+    }
     time.Sleep(10 * time.Millisecond)
     //rf.cond.Wait()
   }
 }
 
 func (rf *Raft) Loop() {
+  go rf.CommitLoop()
 	for rf.killed() == false {
 		// Your code here (2A)
 		// Check if a leader election should be started.
 		if rf.killed() {
+      rf.Wg.Wait()
 			return
 		}
 		switch rf.state {
@@ -965,8 +915,8 @@ func Make(peers []*labrpc.ClientEnd, me int,
 		peers:       peers,
 		persister:   persister,
 		me:          me,
-		ch:          make(chan *ev, 1024),
-		NewLogCh:    make(chan *Log, 1024),
+		ch:          make(chan *ev, 2048),
+		NewLogCh:    make(chan *Log, 2048),
 		state:       Follower,
 		killedCh:    make(chan int32, 1),
 		currentTerm: 0,
@@ -993,7 +943,6 @@ func Make(peers []*labrpc.ClientEnd, me int,
   //rf.PrintState("Make", true)
 	rf.msgCh = applyCh
 	go rf.Loop()
-  go rf.CommitLoop()
 
 	return rf
 }
