@@ -854,7 +854,6 @@ func (rf *Raft) Start(command interface{}) (int, int, bool) {
 
 func (rf *Raft) Kill() {
 	atomic.StoreInt32(&rf.dead, 1)
-	// Your code here, if desired.
 	rf.killedCh <- rf.dead
 	DPrintf("server#%d killed", rf.me)
 }
@@ -866,16 +865,16 @@ func (rf *Raft) killed() bool {
 
 
 func (rf *Raft) CommitLoop() {
-  //rf.lk.Lock()
+  rf.lk.Lock()
   for rf.killed() == false {
     for idx := rf.lastApplied + 1; idx <= rf.commitIndex; idx ++ {
       rf.Commit(idx)
     }
     if len(rf.ch) > 0 || len(rf.msgCh) > 0 {
-      fmt.Printf("len=%d %d\n", len(rf.ch), len(rf.msgCh))
+      //fmt.Printf("len=%d %d\n", len(rf.ch), len(rf.msgCh))
     }
-    time.Sleep(10 * time.Millisecond)
-    //rf.cond.Wait()
+    //time.Sleep(10 * time.Millisecond)
+    rf.cond.Wait()
   }
 }
 
@@ -915,8 +914,8 @@ func Make(peers []*labrpc.ClientEnd, me int,
 		peers:       peers,
 		persister:   persister,
 		me:          me,
-		ch:          make(chan *ev, 2048),
-		NewLogCh:    make(chan *Log, 2048),
+		ch:          make(chan *ev, 1024),
+		NewLogCh:    make(chan *Log, 1024),
 		state:       Follower,
 		killedCh:    make(chan int32, 1),
 		currentTerm: 0,
