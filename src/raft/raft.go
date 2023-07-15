@@ -124,6 +124,12 @@ type Raft struct {
   Wg sync.WaitGroup
 }
 
+func (rf *Raft) GetLog(idx int) Log {
+  rf.lock.RLock()
+  defer rf.lock.RUnlock()
+  return rf.logs[idx]
+}
+
 func (rf *Raft) GetRaftState() string {
   rf.lock.RLock()
   defer rf.lock.RUnlock()
@@ -247,7 +253,7 @@ func (rf *Raft) ToFollower(term int) {
 	rf.currentTerm = term
 	rf.state = Follower
 	rf.votedFor = -1
-	rf.ResetTime(RandTime())
+	//rf.ResetTime(RandTime())
 }
 
 func (rf *Raft) ToLeader() {
@@ -366,12 +372,13 @@ type AppendEntriesReply struct {
 }
 
 func (rf *Raft) Commit(idx int) {
+  log := rf.GetLog(idx)
   newMsg := ApplyMsg{
     CommandValid: true,
-    Command: rf.logs[idx].Command,
-    CommandIndex: idx,
+    Command: log.Command,
+    CommandIndex: log.Index,
   }
-  DPrintf("S%d Submit {Index: %d, Command %v}", rf.me, idx, rf.logs[idx].Command)
+  DPrintf("S%d Submit {Index: %d, Command %v}", rf.me, idx, log.Command)
   rf.PrintState("AfterSubmit", true)
   rf.lastApplied ++
   rf.msgCh <- newMsg
@@ -521,7 +528,7 @@ func (rf *Raft) ProcessAppendEntriesRequest(args *AppendEntriesArgs) (*AppendEnt
 	reply := &AppendEntriesReply{
     Server: rf.me, 
 		Success: true,
-		Term:    rf.currentTerm,
+		Term:    rf.GetCurrnetTerm(),
 	}
 	defer func() {
     //if !args.HeartBeat {
@@ -697,7 +704,7 @@ func (rf *Raft) sendRequestVote(server int, args *RequestVoteArgs, respChan chan
 
 func (rf *Raft) FollowerLoop() {
 	rf.ResetTime(RandTime())
-	for rf.state == Follower {
+	for rf.GetRaftState() == Follower {
 		update := false
 		var err error = nil
 		select {
@@ -730,6 +737,7 @@ func (rf *Raft) CandidateLoop() {
 		if rf.killed() == true {
 			return
 		}
+    // 第一次选举或选举超时
 		if doVote {
       rf.UpdateCurrentTerm(1)
       rf.SetVotedFor(rf.me)
@@ -800,7 +808,7 @@ func (rf *Raft) LeaderLoop() {
 			rf.sendHeartBeat(server)
 		}(i)
 	}
-	for rf.state == Leader {
+	for rf.GetRaftState() == Leader {
 		var err error = nil
 		select {
 		case e := <-rf.ch:
@@ -812,7 +820,6 @@ func (rf *Raft) LeaderLoop() {
 			case *AppendEntriesReply: // 响应 AppendEntriesReply
 				go rf.ProcessAppendEntriesReply(req)
       case *Retry:
-				// 能不能 go ?
         DPrintf("Retry S%d -> S%d\n", rf.me, req.server)
         go rf.sendAppendEntries(req.server, rf.InitArgs())
 			}
@@ -867,11 +874,8 @@ func (rf *Raft) killed() bool {
 func (rf *Raft) CommitLoop() {
   rf.lk.Lock()
   for rf.killed() == false {
-    for idx := rf.lastApplied + 1; idx <= rf.commitIndex; idx ++ {
+    for idx := rf.lastApplied + 1; idx <= rf.GetCommitIndex(); idx ++ {
       rf.Commit(idx)
-    }
-    if len(rf.ch) > 0 || len(rf.msgCh) > 0 {
-      //fmt.Printf("len=%d %d\n", len(rf.ch), len(rf.msgCh))
     }
     //time.Sleep(10 * time.Millisecond)
     rf.cond.Wait()
@@ -887,7 +891,7 @@ func (rf *Raft) Loop() {
       rf.Wg.Wait()
 			return
 		}
-		switch rf.state {
+		switch rf.GetRaftState() {
 		case Follower:
 			rf.FollowerLoop()
 		case Candidate:
@@ -968,6 +972,7 @@ func RandTimer() <-chan time.Time {
 	return timer.C
 }
 
+// 可能有 data race， 但概率很小 
 func (rf *Raft) ResetTime(duration time.Duration) {
 	rf.overtime = duration
 	rf.timer = time.NewTicker(rf.overtime)

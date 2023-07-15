@@ -7,7 +7,7 @@ import (
 )
 
 // Debugging
-var Debug bool = true
+var Debug bool = false
 
 //const Debug = false
 
