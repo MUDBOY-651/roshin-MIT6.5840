@@ -18,6 +18,7 @@ import (
 	"time"
 )
 
+const DBG = true
 
 // The tester generously allows solutions to complete elections in one second
 // (much more than the paper's range of timeouts).
@@ -143,7 +144,7 @@ func TestManyElections2A(t *testing.T) {
 }
 
 func TestBasicAgree2B(t *testing.T) {
-  //return
+  Debug = false
 	servers := 3
 	cfg := make_config(t, servers, false, false)
 	defer cfg.cleanup()
@@ -162,16 +163,22 @@ func TestBasicAgree2B(t *testing.T) {
 			t.Fatalf("got index %v but expected %v", xindex, index)
 		}
 	}
-
 	cfg.end()
 }
+
 
 // check, based on counting bytes of RPCs, that
 // each Command is sent to each peer just once.
 func TestRPCBytes2B(t *testing.T) {
-  return
-  //fmt.Printf("--------------------TEST END--------------------\n")
-  //log.Fatal("END")
+  Debug = false
+  if DBG {
+    TestRejoin2B(t)
+    //TestFollowerFailure2B(t)
+    //TestFailNoAgree2B(t)
+    log.Fatal("----TEST END----\n")
+  }
+  //TestConcurrentStarts2B(t)
+  //return
 	servers := 3
 	cfg := make_config(t, servers, false, false)
 	defer cfg.cleanup()
@@ -204,9 +211,7 @@ func TestRPCBytes2B(t *testing.T) {
 
 // test just failure of followers.
 func TestFollowerFailure2B(t *testing.T) {
-  return
-  //fmt.Printf("--------------------TEST END--------------------\n")
-  //log.Fatal("END")
+  Debug = false
 	servers := 3
 	cfg := make_config(t, servers, false, false)
 	defer cfg.cleanup()
@@ -252,7 +257,8 @@ func TestFollowerFailure2B(t *testing.T) {
 
 // test just failure of leaders.
 func TestLeaderFailure2B(t *testing.T) {
-  return
+  Debug = false
+  //return
   //log.Printf("???")
   //fmt.Printf("--------------------TEST END--------------------\n")
   //log.Fatal("END")
@@ -297,7 +303,8 @@ func TestLeaderFailure2B(t *testing.T) {
 // test that a follower participates after
 // disconnect and re-connect.
 func TestFailAgree2B(t *testing.T) {
-  return
+  Debug = false
+  //return
   // This FAILED
 	servers := 3
 	cfg := make_config(t, servers, false, false)
@@ -333,7 +340,8 @@ func TestFailAgree2B(t *testing.T) {
 }
 
 func TestFailNoAgree2B(t *testing.T) {
-  return
+  Debug = false
+  //return
 	servers := 5
 	cfg := make_config(t, servers, false, false)
 	defer cfg.cleanup()
@@ -385,7 +393,7 @@ func TestFailNoAgree2B(t *testing.T) {
 }
 
 func TestConcurrentStarts2B(t *testing.T) {
-  return
+  Debug = false
 	servers := 3
 	cfg := make_config(t, servers, false, false)
 	defer cfg.cleanup()
@@ -487,6 +495,7 @@ loop:
 }
 
 func TestRejoin2B(t *testing.T) {
+  Debug = false
 	servers := 3
 	cfg := make_config(t, servers, false, false)
 	defer cfg.cleanup()
@@ -509,6 +518,7 @@ func TestRejoin2B(t *testing.T) {
 
 	// new leader network failure
 	leader2 := cfg.checkOneLeader()
+  ImportantInfo("Old Leader S%d, New Leader S%d\n", leader1, leader2)
 	cfg.disconnect(leader2)
 
 	// old leader connected again
@@ -525,6 +535,7 @@ func TestRejoin2B(t *testing.T) {
 }
 
 func TestBackup2B(t *testing.T) {
+  Debug = false
 	servers := 5
 	cfg := make_config(t, servers, false, false)
 	defer cfg.cleanup()
@@ -597,6 +608,7 @@ func TestBackup2B(t *testing.T) {
 }
 
 func TestCount2B(t *testing.T) {
+  Debug = false
 	servers := 3
 	cfg := make_config(t, servers, false, false)
 	defer cfg.cleanup()

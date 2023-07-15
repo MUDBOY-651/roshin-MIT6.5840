@@ -7,9 +7,9 @@ import (
 )
 
 // Debugging
-const Debug = false
+var Debug bool = true
 
-//const Debug = true
+//const Debug = false
 
 var void interface{}
 
@@ -44,7 +44,7 @@ func PrintLockInfo (v interface{}) {
 
 //const DEBUG_TEST = true
 
-const DEBUG_TEST = true
+const DEBUG_TEST = false
 
 
 func ImportantInfo(format string, a ...interface{}) {
