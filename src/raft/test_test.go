@@ -135,7 +135,7 @@ func TestManyElections2A(t *testing.T) {
 		cfg.connect(i1)
 		cfg.connect(i2)
 		cfg.connect(i3)
-		fmt.Printf("finished iter %d\n", ii)
+		//fmt.Printf("finished iter %d\n", ii)
 	}
 
 	cfg.checkOneLeader()
@@ -946,7 +946,8 @@ func TestFigure8Unreliable2C(t *testing.T) {
 
 	nup := servers
   // 1000
-	for iters := 0; iters < 1000; iters++ {
+	for iters := 0; iters < 5000; iters++ {
+    fmt.Printf("iter=%d\n",iters)
 		if iters == 200 {
 			cfg.setlongreordering(true)
 		}

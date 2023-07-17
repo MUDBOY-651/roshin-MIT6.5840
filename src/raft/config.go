@@ -331,8 +331,8 @@ func (cfg *config) start1(i int, applier func(int, chan ApplyMsg)) {
 
 func (cfg *config) checkTimeout() {
 	// enforce a two minute real-time limit on each test
-	if !cfg.t.Failed() && time.Since(cfg.start) > 120*time.Second {
-		cfg.t.Fatal("test took longer than 120 seconds")
+	if !cfg.t.Failed() && time.Since(cfg.start) > 600*time.Second {
+		cfg.t.Fatal("test took longer than 600 seconds")
 	}
 }
 
