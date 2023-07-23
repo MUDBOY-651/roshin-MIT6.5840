@@ -1,0 +1,465 @@
+2023/07/23 02:38:58 disconnect(0)
+[Reboot] S0 Follower Term=0 lastLogIndex=0 lastApplied=0 commitIndex=0
+----------Entries=[{0 0 <nil>}]
+2023/07/23 02:38:58 disconnect(1)
+[Reboot] S1 Follower Term=0 lastLogIndex=0 lastApplied=0 commitIndex=0
+----------Entries=[{0 0 <nil>}]
+2023/07/23 02:38:58 disconnect(2)
+[Reboot] S2 Follower Term=0 lastLogIndex=0 lastApplied=0 commitIndex=0
+----------Entries=[{0 0 <nil>}]
+---------------------------------------------------------------
+Connect (0)
+---------------------------------------------------------------
+---------------------------------------------------------------
+Connect (1)
+---------------------------------------------------------------
+---------------------------------------------------------------
+Connect (2)
+---------------------------------------------------------------
+Test (2B): rejoin of partitioned leader ...
+[Election] S1 Candidate Term=1 lastLogIndex=0 lastApplied=0 commitIndex=0
+----------Entries=[{0 0 <nil>}]
+2023/07/23 02:38:58 S1 Got 1 Vote
+2023/07/23 02:38:58 S1 VoteCnt=2
+---[Leader Changed]S1 -> Leader Term:1 lastapplied:0
+[Recevie Entreis] S2 Follower Term=1 lastLogIndex=0 lastApplied=0 commitIndex=0
+----------Entries=[{0 0 <nil>}]
+2023/07/23 02:38:58 senderlastIndx=0 prevLogindex= 0
+2023/07/23 02:38:58 AppendEntries Recevied S1 -> S2
+args:&{Term:1 LeaderId:1 PrevLogIndex:0 PrevLogTerm:0 Entries:[] LeaderCommit:0}
+reply:&{Term:1 Success:true Server:2 LastLogIndex:0 LogLength:1 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S1 Processing reply from S2
+[Recevie Entreis] S0 Follower Term=1 lastLogIndex=0 lastApplied=0 commitIndex=0
+----------Entries=[{0 0 <nil>}]
+2023/07/23 02:38:58 senderlastIndx=0 prevLogindex= 0
+2023/07/23 02:38:58 AppendEntries Recevied S1 -> S0
+args:&{Term:1 LeaderId:1 PrevLogIndex:0 PrevLogTerm:0 Entries:[] LeaderCommit:0}
+reply:&{Term:1 Success:true Server:0 LastLogIndex:0 LogLength:1 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S1 Processing reply from S0
+---------------------------------------------------------------
+S1 recevied NEWLOG: &{1 1 101}
+---------------------------------------------------------------
+[Recevie Entreis] S0 Follower Term=1 lastLogIndex=0 lastApplied=0 commitIndex=0
+----------Entries=[{0 0 <nil>}]
+2023/07/23 02:38:58 senderlastIndx=0 prevLogindex= 0
+2023/07/23 02:38:58 AppendEntries Recevied S1 -> S0
+args:&{Term:1 LeaderId:1 PrevLogIndex:0 PrevLogTerm:0 Entries:[{Index:1 Term:1 Command:101}] LeaderCommit:0}
+reply:&{Term:1 Success:true Server:0 LastLogIndex:1 LogLength:2 ConflictTerm:0 ConflictIndex:0 State:}
+[Recevie Entreis] S2 Follower Term=1 lastLogIndex=0 lastApplied=0 commitIndex=0
+----------Entries=[{0 0 <nil>}]
+2023/07/23 02:38:58 senderlastIndx=0 prevLogindex= 0
+2023/07/23 02:38:58 AppendEntries Recevied S1 -> S2
+args:&{Term:1 LeaderId:1 PrevLogIndex:0 PrevLogTerm:0 Entries:[{Index:1 Term:1 Command:101}] LeaderCommit:0}
+reply:&{Term:1 Success:true Server:2 LastLogIndex:1 LogLength:2 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S1 Processing reply from S0
+2023/07/23 02:38:58 S1 Submit {Index: 1, Command 101}
+[AfterSubmit] S1 Leader Term=1 lastLogIndex=1 lastApplied=0 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101}]
+---[ProcessAppendEntriesReply] S1 Processing reply from S2
+[Recevie Entreis] S2 Follower Term=1 lastLogIndex=1 lastApplied=0 commitIndex=0
+----------Entries=[{0 0 <nil>} {1 1 101}]
+2023/07/23 02:38:58 senderlastIndx=1 prevLogindex= 1
+2023/07/23 02:38:58 AppendEntries Recevied S1 -> S2
+args:&{Term:1 LeaderId:1 PrevLogIndex:1 PrevLogTerm:1 Entries:[] LeaderCommit:1}
+reply:&{Term:1 Success:true Server:2 LastLogIndex:1 LogLength:2 ConflictTerm:0 ConflictIndex:0 State:}
+[Recevie Entreis] S0 Follower Term=1 lastLogIndex=1 lastApplied=0 commitIndex=0
+----------Entries=[{0 0 <nil>} {1 1 101}]
+2023/07/23 02:38:58 senderlastIndx=1 prevLogindex= 1
+2023/07/23 02:38:58 AppendEntries Recevied S1 -> S0
+args:&{Term:1 LeaderId:1 PrevLogIndex:1 PrevLogTerm:1 Entries:[] LeaderCommit:1}
+reply:&{Term:1 Success:true Server:0 LastLogIndex:1 LogLength:2 ConflictTerm:0 ConflictIndex:0 State:}
+2023/07/23 02:38:58 S2 Submit {Index: 1, Command 101}
+2023/07/23 02:38:58 S0 Submit {Index: 1, Command 101}
+---[ProcessAppendEntriesReply] S1 Processing reply from S2
+[AfterSubmit] S2 Follower Term=1 lastLogIndex=1 lastApplied=0 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101}]
+[AfterSubmit] S0 Follower Term=1 lastLogIndex=1 lastApplied=0 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101}]
+---[ProcessAppendEntriesReply] S1 Processing reply from S0
+[Recevie Entreis] S0 Follower Term=1 lastLogIndex=1 lastApplied=1 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101}]
+2023/07/23 02:38:58 senderlastIndx=1 prevLogindex= 1
+2023/07/23 02:38:58 AppendEntries Recevied S1 -> S0
+args:&{Term:1 LeaderId:1 PrevLogIndex:1 PrevLogTerm:1 Entries:[] LeaderCommit:1}
+reply:&{Term:1 Success:true Server:0 LastLogIndex:1 LogLength:2 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S1 Processing reply from S0
+[Recevie Entreis] S2 Follower Term=1 lastLogIndex=1 lastApplied=1 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101}]
+2023/07/23 02:38:58 senderlastIndx=1 prevLogindex= 1
+2023/07/23 02:38:58 AppendEntries Recevied S1 -> S2
+args:&{Term:1 LeaderId:1 PrevLogIndex:1 PrevLogTerm:1 Entries:[] LeaderCommit:1}
+reply:&{Term:1 Success:true Server:2 LastLogIndex:1 LogLength:2 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S1 Processing reply from S2
+[Recevie Entreis] S2 Follower Term=1 lastLogIndex=1 lastApplied=1 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101}]
+2023/07/23 02:38:58 senderlastIndx=1 prevLogindex= 1
+2023/07/23 02:38:58 AppendEntries Recevied S1 -> S2
+args:&{Term:1 LeaderId:1 PrevLogIndex:1 PrevLogTerm:1 Entries:[] LeaderCommit:1}
+reply:&{Term:1 Success:true Server:2 LastLogIndex:1 LogLength:2 ConflictTerm:0 ConflictIndex:0 State:}
+[Recevie Entreis] S0 Follower Term=1 lastLogIndex=1 lastApplied=1 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101}]
+2023/07/23 02:38:58 senderlastIndx=1 prevLogindex= 1
+---[ProcessAppendEntriesReply] S1 Processing reply from S2
+2023/07/23 02:38:58 AppendEntries Recevied S1 -> S0
+args:&{Term:1 LeaderId:1 PrevLogIndex:1 PrevLogTerm:1 Entries:[] LeaderCommit:1}
+reply:&{Term:1 Success:true Server:0 LastLogIndex:1 LogLength:2 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S1 Processing reply from S0
+[Recevie Entreis] S0 Follower Term=1 lastLogIndex=1 lastApplied=1 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101}]
+2023/07/23 02:38:59 senderlastIndx=1 prevLogindex= 1
+2023/07/23 02:38:59 AppendEntries Recevied S1 -> S0
+args:&{Term:1 LeaderId:1 PrevLogIndex:1 PrevLogTerm:1 Entries:[] LeaderCommit:1}
+reply:&{Term:1 Success:true Server:0 LastLogIndex:1 LogLength:2 ConflictTerm:0 ConflictIndex:0 State:}
+[Recevie Entreis] S2 Follower Term=1 lastLogIndex=1 lastApplied=1 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101}]
+2023/07/23 02:38:59 senderlastIndx=1 prevLogindex= 1
+2023/07/23 02:38:59 AppendEntries Recevied S1 -> S2
+args:&{Term:1 LeaderId:1 PrevLogIndex:1 PrevLogTerm:1 Entries:[] LeaderCommit:1}
+reply:&{Term:1 Success:true Server:2 LastLogIndex:1 LogLength:2 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S1 Processing reply from S0
+---[ProcessAppendEntriesReply] S1 Processing reply from S2
+[Recevie Entreis] S2 Follower Term=1 lastLogIndex=1 lastApplied=1 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101}]
+2023/07/23 02:38:59 senderlastIndx=1 prevLogindex= 1
+2023/07/23 02:38:59 AppendEntries Recevied S1 -> S2
+args:&{Term:1 LeaderId:1 PrevLogIndex:1 PrevLogTerm:1 Entries:[] LeaderCommit:1}
+reply:&{Term:1 Success:true Server:2 LastLogIndex:1 LogLength:2 ConflictTerm:0 ConflictIndex:0 State:}
+[Recevie Entreis] S0 Follower Term=1 lastLogIndex=1 lastApplied=1 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101}]
+2023/07/23 02:38:59 senderlastIndx=1 prevLogindex= 1
+2023/07/23 02:38:59 AppendEntries Recevied S1 -> S0
+args:&{Term:1 LeaderId:1 PrevLogIndex:1 PrevLogTerm:1 Entries:[] LeaderCommit:1}
+reply:&{Term:1 Success:true Server:0 LastLogIndex:1 LogLength:2 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S1 Processing reply from S2
+---[ProcessAppendEntriesReply] S1 Processing reply from S0
+2023/07/23 02:38:59 disconnect(1)
+---------------------------------------------------------------
+S1 recevied NEWLOG: &{2 1 102}
+---------------------------------------------------------------
+---------------------------------------------------------------
+S1 recevied NEWLOG: &{3 1 103}
+---------------------------------------------------------------
+---------------------------------------------------------------
+S1 recevied NEWLOG: &{4 1 104}
+---------------------------------------------------------------
+[Election] S0 Candidate Term=2 lastLogIndex=1 lastApplied=1 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101}]
+2023/07/23 02:38:59 S0 Got 1 Vote
+2023/07/23 02:38:59 S0 VoteCnt=2
+---[Leader Changed]S0 -> Leader Term:2 lastapplied:1
+[Recevie Entreis] S2 Follower Term=2 lastLogIndex=1 lastApplied=1 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101}]
+2023/07/23 02:38:59 senderlastIndx=1 prevLogindex= 1
+2023/07/23 02:38:59 AppendEntries Recevied S0 -> S2
+args:&{Term:2 LeaderId:0 PrevLogIndex:1 PrevLogTerm:1 Entries:[] LeaderCommit:1}
+reply:&{Term:2 Success:true Server:2 LastLogIndex:1 LogLength:2 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S0 Processing reply from S2
+---------------------------------------------------------------
+S0 recevied NEWLOG: &{2 2 103}
+---------------------------------------------------------------
+[Recevie Entreis] S2 Follower Term=2 lastLogIndex=1 lastApplied=1 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101}]
+2023/07/23 02:38:59 senderlastIndx=1 prevLogindex= 1
+2023/07/23 02:38:59 AppendEntries Recevied S0 -> S2
+args:&{Term:2 LeaderId:0 PrevLogIndex:1 PrevLogTerm:1 Entries:[{Index:2 Term:2 Command:103}] LeaderCommit:1}
+reply:&{Term:2 Success:true Server:2 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S0 Processing reply from S2
+2023/07/23 02:38:59 S0 Submit {Index: 2, Command 103}
+[AfterSubmit] S0 Leader Term=2 lastLogIndex=2 lastApplied=1 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+---[SEND FAIL] AppendEntries: S1 -> S2 FAILED
+[Recevie Entreis] S2 Follower Term=2 lastLogIndex=2 lastApplied=1 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:38:59 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:38:59 AppendEntries Recevied S0 -> S2
+args:&{Term:2 LeaderId:0 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:2 Success:true Server:2 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+2023/07/23 02:38:59 S2 Submit {Index: 2, Command 103}
+[AfterSubmit] S2 Follower Term=2 lastLogIndex=2 lastApplied=1 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+---[ProcessAppendEntriesReply] S0 Processing reply from S2
+---[SEND FAIL] AppendEntries: S1 -> S2 FAILED
+[Recevie Entreis] S2 Follower Term=2 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:38:59 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:38:59 AppendEntries Recevied S0 -> S2
+args:&{Term:2 LeaderId:0 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:2 Success:true Server:2 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S0 Processing reply from S2
+[Recevie Entreis] S2 Follower Term=2 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:00 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:00 AppendEntries Recevied S0 -> S2
+args:&{Term:2 LeaderId:0 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:2 Success:true Server:2 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S0 Processing reply from S2
+---[SEND FAIL] AppendEntries: S1 -> S0 FAILED
+[Recevie Entreis] S2 Follower Term=2 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:00 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:00 AppendEntries Recevied S0 -> S2
+args:&{Term:2 LeaderId:0 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:2 Success:true Server:2 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S0 Processing reply from S2
+---[SEND FAIL] AppendEntries: S1 -> S2 FAILED
+[Recevie Entreis] S2 Follower Term=2 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:00 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:00 AppendEntries Recevied S0 -> S2
+args:&{Term:2 LeaderId:0 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:2 Success:true Server:2 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S0 Processing reply from S2
+[Recevie Entreis] S2 Follower Term=2 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:00 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:00 AppendEntries Recevied S0 -> S2
+args:&{Term:2 LeaderId:0 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:2 Success:true Server:2 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S0 Processing reply from S2
+2023/07/23 02:39:00 disconnect(0)
+---------------------------------------------------------------
+Connect (1)
+---------------------------------------------------------------
+---------------------------------------------------------------
+S1 recevied NEWLOG: &{5 1 104}
+---------------------------------------------------------------
+2023/07/23 02:39:00 AppendEntries Recevied S1 -> S2
+args:&{Term:1 LeaderId:1 PrevLogIndex:1 PrevLogTerm:1 Entries:[{Index:2 Term:1 Command:102} {Index:3 Term:1 Command:103} {Index:4 Term:1 Command:104} {Index:5 Term:1 Command:104}] LeaderCommit:1}
+reply:&{Term:2 Success:false Server:2 LastLogIndex:0 LogLength:0 ConflictTerm:0 ConflictIndex:0 State:ShouldUpdateTerm}
+---[ProcessAppendEntriesReply] S1 Processing reply from S2
+---[TurnFollower] S1 ShouldUpdateTerm
+2023/07/23 02:39:00 S1 State: Leader -> Follower Term:1 -> 2
+---[SEND FAIL] AppendEntries: S1 -> S0 FAILED
+---[SEND FAIL] AppendEntries: S1 -> S0 FAILED
+---[SEND FAIL] AppendEntries: S1 -> S2 FAILED
+[Election] S1 Candidate Term=3 lastLogIndex=5 lastApplied=1 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101} {2 1 102} {3 1 103} {4 1 104} {5 1 104}]
+---[SEND FAIL] AppendEntries: S0 -> S2 FAILED
+---[SEND FAIL] AppendEntries: S0 -> S1 FAILED
+[Election] S2 Candidate Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+---[TurnFollower] S1 meet higher Term
+2023/07/23 02:39:00 S1 State: Candidate -> Follower Term:3 -> 4
+2023/07/23 02:39:00 S2 Got 1 Vote
+2023/07/23 02:39:00 S2 VoteCnt=2
+---[Leader Changed]S2 -> Leader Term:4 lastapplied:2
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=5 lastApplied=1 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101} {2 1 102} {3 1 103} {4 1 104} {5 1 104}]
+2023/07/23 02:39:00 senderlastIndx=5 prevLogindex= 2
+2023/07/23 02:39:00 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:false Server:1 LastLogIndex:5 LogLength:6 ConflictTerm:1 ConflictIndex:1 State:Inconsistency}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=5 lastApplied=1 commitIndex=1
+----------Entries=[{0 0 <nil>} {1 1 101} {2 1 102} {3 1 103} {4 1 104} {5 1 104}]
+2023/07/23 02:39:00 senderlastIndx=5 prevLogindex= 1
+2023/07/23 02:39:00 LOG DIFF: last=5 rf.Log={Index:2 Term:1 Command:102} pLog=&{Index:2 Term:2 Command:103}
+2023/07/23 02:39:00 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:1 PrevLogTerm:1 Entries:[{Index:2 Term:2 Command:103}] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+2023/07/23 02:39:00 S1 Submit {Index: 2, Command 103}
+[AfterSubmit] S1 Follower Term=4 lastLogIndex=2 lastApplied=1 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:01 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:01 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+---[SEND FAIL] AppendEntries: S0 -> S1 FAILED
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:01 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:01 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+---[SEND FAIL] AppendEntries: S0 -> S2 FAILED
+---[SEND FAIL] AppendEntries: S1 -> S2 FAILED
+---[SEND FAIL] AppendEntries: S0 -> S2 FAILED
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:01 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:01 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:01 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:01 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:01 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:01 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:01 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:01 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:01 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:01 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:01 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:01 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+---[SEND FAIL] AppendEntries: S0 -> S1 FAILED
+---[SEND FAIL] AppendEntries: S1 -> S0 FAILED
+---[SEND FAIL] AppendEntries: S1 -> S0 FAILED
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:01 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:01 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+---[SEND FAIL] AppendEntries: S0 -> S1 FAILED
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:01 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:01 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:02 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:02 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+---[SEND FAIL] AppendEntries: S0 -> S2 FAILED
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:02 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:02 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+---[SEND FAIL] AppendEntries: S1 -> S0 FAILED
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:02 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:02 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+---[SEND WARN] RequstVote S0 -> S1 FAILED!
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:02 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:02 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:2 LogLength:3 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+---[SEND FAIL] AppendEntries: S1 -> S2 FAILED
+---------------------------------------------------------------
+S2 recevied NEWLOG: &{3 4 104}
+---------------------------------------------------------------
+---[SEND FAIL] AppendEntries: S0 -> S2 FAILED
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:02 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:02 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[{Index:3 Term:4 Command:104}] LeaderCommit:2}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:3 LogLength:4 ConflictTerm:0 ConflictIndex:0 State:}
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+2023/07/23 02:39:02 S2 Submit {Index: 3, Command 104}
+[AfterSubmit] S2 Leader Term=4 lastLogIndex=3 lastApplied=2 commitIndex=3
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103} {3 4 104}]
+---[SEND FAIL] AppendEntries: S2 -> S0 FAILED
+---[SEND FAIL] AppendEntries: S0 -> S1 FAILED
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=3 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103} {3 4 104}]
+2023/07/23 02:39:02 senderlastIndx=3 prevLogindex= 3
+2023/07/23 02:39:02 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:3 PrevLogTerm:4 Entries:[] LeaderCommit:3}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:3 LogLength:4 ConflictTerm:0 ConflictIndex:0 State:}
+2023/07/23 02:39:02 S1 Submit {Index: 3, Command 104}
+[AfterSubmit] S1 Follower Term=4 lastLogIndex=3 lastApplied=2 commitIndex=3
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103} {3 4 104}]
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+---------------------------------------------------------------
+Connect (0)
+---------------------------------------------------------------
+---------------------------------------------------------------
+S2 recevied NEWLOG: &{4 4 105}
+---------------------------------------------------------------
+---[SEND FAIL] AppendEntries: S1 -> S0 FAILED
+---[SEND FAIL] AppendEntries: S2 -> S0 FAILED
+---[SEND FAIL] AppendEntries: S0 -> S2 FAILED
+2023/07/23 02:39:02 AppendEntries Recevied S0 -> S2
+args:&{Term:2 LeaderId:0 PrevLogIndex:2 PrevLogTerm:2 Entries:[] LeaderCommit:2}
+reply:&{Term:4 Success:false Server:2 LastLogIndex:0 LogLength:0 ConflictTerm:0 ConflictIndex:0 State:ShouldUpdateTerm}
+2023/07/23 02:39:02 AppendEntries Recevied S0 -> S1
+args:&{Term:2 LeaderId:0 PrevLogIndex:1 PrevLogTerm:1 Entries:[{Index:2 Term:2 Command:103}] LeaderCommit:2}
+reply:&{Term:4 Success:false Server:1 LastLogIndex:0 LogLength:0 ConflictTerm:0 ConflictIndex:0 State:ShouldUpdateTerm}
+---[ProcessAppendEntriesReply] S0 Processing reply from S2
+---[TurnFollower] S0 ShouldUpdateTerm
+2023/07/23 02:39:02 S0 State: Leader -> Follower Term:2 -> 4
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=3 lastApplied=3 commitIndex=3
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103} {3 4 104}]
+2023/07/23 02:39:02 senderlastIndx=3 prevLogindex= 3
+[Recevie Entreis] S0 Follower Term=4 lastLogIndex=2 lastApplied=2 commitIndex=2
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103}]
+2023/07/23 02:39:02 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:3 PrevLogTerm:4 Entries:[{Index:4 Term:4 Command:105}] LeaderCommit:3}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:4 LogLength:5 ConflictTerm:0 ConflictIndex:0 State:}
+2023/07/23 02:39:02 senderlastIndx=2 prevLogindex= 2
+2023/07/23 02:39:02 AppendEntries Recevied S2 -> S0
+args:&{Term:4 LeaderId:2 PrevLogIndex:2 PrevLogTerm:2 Entries:[{Index:3 Term:4 Command:104} {Index:4 Term:4 Command:105}] LeaderCommit:3}
+reply:&{Term:4 Success:true Server:0 LastLogIndex:4 LogLength:5 ConflictTerm:0 ConflictIndex:0 State:}
+2023/07/23 02:39:02 S0 Submit {Index: 3, Command 104}
+[AfterSubmit] S0 Follower Term=4 lastLogIndex=4 lastApplied=2 commitIndex=3
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103} {3 4 104} {4 4 105}]
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+---[ProcessAppendEntriesReply] S2 Processing reply from S0
+2023/07/23 02:39:02 S2 Submit {Index: 4, Command 105}
+[AfterSubmit] S2 Leader Term=4 lastLogIndex=4 lastApplied=3 commitIndex=4
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103} {3 4 104} {4 4 105}]
+---[SEND FAIL] AppendEntries: S0 -> S1 FAILED
+---[SEND FAIL] AppendEntries: S0 -> S1 FAILED
+[Recevie Entreis] S1 Follower Term=4 lastLogIndex=4 lastApplied=3 commitIndex=3
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103} {3 4 104} {4 4 105}]
+2023/07/23 02:39:02 senderlastIndx=4 prevLogindex= 4
+[Recevie Entreis] S0 Follower Term=4 lastLogIndex=4 lastApplied=3 commitIndex=3
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103} {3 4 104} {4 4 105}]
+2023/07/23 02:39:02 AppendEntries Recevied S2 -> S1
+args:&{Term:4 LeaderId:2 PrevLogIndex:4 PrevLogTerm:4 Entries:[] LeaderCommit:4}
+reply:&{Term:4 Success:true Server:1 LastLogIndex:4 LogLength:5 ConflictTerm:0 ConflictIndex:0 State:}
+2023/07/23 02:39:02 S1 Submit {Index: 4, Command 105}
+[AfterSubmit] S1 Follower Term=4 lastLogIndex=4 lastApplied=3 commitIndex=4
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103} {3 4 104} {4 4 105}]
+2023/07/23 02:39:02 senderlastIndx=4 prevLogindex= 4
+2023/07/23 02:39:02 AppendEntries Recevied S2 -> S0
+args:&{Term:4 LeaderId:2 PrevLogIndex:4 PrevLogTerm:4 Entries:[] LeaderCommit:4}
+reply:&{Term:4 Success:true Server:0 LastLogIndex:4 LogLength:5 ConflictTerm:0 ConflictIndex:0 State:}
+2023/07/23 02:39:02 S0 Submit {Index: 4, Command 105}
+[AfterSubmit] S0 Follower Term=4 lastLogIndex=4 lastApplied=3 commitIndex=4
+----------Entries=[{0 0 <nil>} {1 1 101} {2 2 103} {3 4 104} {4 4 105}]
+---[ProcessAppendEntriesReply] S2 Processing reply from S1
+---[ProcessAppendEntriesReply] S2 Processing reply from S0
+  ... Passed --   4.7  3  150   37864    4
+2023/07/23 02:39:02 server#0 killed
+2023/07/23 02:39:02 server#1 killed
+2023/07/23 02:39:02 server#2 killed
+PASS
+ok  	6.5840/raft	4.672s

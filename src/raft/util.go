@@ -28,9 +28,9 @@ func Dprintf(format string, a ...interface{}) (n int, err error) {
 
 func dbg(format string, a ...interface{}) (n int, err error) {
   if Debug {
-		fmt.Printf("---------------------------------------------------------------\n")
+		fmt.Printf("-----------")
 		fmt.Printf(format, a...)
-		fmt.Printf("---------------------------------------------------------------\n")
+		fmt.Printf("-----------\n")
   }
   return 
 }

@@ -24,6 +24,12 @@ const DBG = false
 // (much more than the paper's range of timeouts).
 const RaftElectionTimeout = 1000 * time.Millisecond
 
+func TestDBG(t *testing.T) {
+  Debug = true
+  TestReliableChurn2C(t)
+  //TestUnreliableChurn2C(t)
+}
+
 func TestInitialElection2A(t *testing.T) {
   //return
   log.Printf("2A Starts")
@@ -727,7 +733,6 @@ func TestPersist12C(t *testing.T) {
 	cfg.begin("Test (2C): basic persistence")
 
 	cfg.one(11, servers, true)
-
 	// crash and re-start all
 	for i := 0; i < servers; i++ {
 		cfg.start1(i, cfg.applier)
@@ -906,6 +911,7 @@ func TestFigure82C(t *testing.T) {
 }
 
 func TestUnreliableAgree2C(t *testing.T) {
+  Debug = false
 	servers := 5
 	cfg := make_config(t, servers, true, false)
 	defer cfg.cleanup()
@@ -946,8 +952,7 @@ func TestFigure8Unreliable2C(t *testing.T) {
 
 	nup := servers
   // 1000
-	for iters := 0; iters < 5000; iters++ {
-    fmt.Printf("iter=%d\n",iters)
+	for iters := 0; iters < 1000; iters++ {
 		if iters == 200 {
 			cfg.setlongreordering(true)
 		}
