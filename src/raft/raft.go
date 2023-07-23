@@ -47,10 +47,6 @@ const (
 	ElectionTimeoutThresholdPercent = 0.8
 )
 
-type Retry struct {
-  server int
-}
-
 type SendCommit struct {
   server int
   index int
@@ -147,7 +143,10 @@ func (rf *Raft) ToFollower(term int) {
 }
 
 func (rf *Raft) ToLeader() {
-  defer rf.persist()
+  defer func() {
+    rf.lock.Unlock()
+    rf.persist()
+  }()
   rf.lock.Lock()
   Dprintf("---[Leader Changed]S%d -> Leader Term:%d lastapplied:%d\n", rf.me, rf.currentTerm, rf.lastLogIndex)
   rf.SetRaftState(Leader)
@@ -159,7 +158,6 @@ func (rf *Raft) ToLeader() {
 		}
     rf.SetNextIndex(i, rf.lastLogIndex + 1)
 	}
-  rf.lock.Unlock()
 }
 
 // return currentTerm and whether this server
@@ -346,7 +344,7 @@ func (rf *Raft) AppendLog(pLog *Log) {
 
 func (rf *Raft) ProcessAppendEntriesReply(reply *AppendEntriesReply) {
   defer rf.persist()
-  Dprintf("---[ProcessAppendEntriesReply] S%d Processing reply from S%d\n", rf.me, reply.Server)
+  Dprintf("---[ProcessAppendEntriesReply] S%d Processing reply from S%d\nreply=%+v\n", rf.me, reply.Server, reply)
   if reply.SendTerm < rf.GetCurrnetTerm() {
     return 
   }
@@ -375,7 +373,6 @@ func (rf *Raft) ProcessAppendEntriesReply(reply *AppendEntriesReply) {
     }
     rf.lock.Unlock()
 
-    rf.ch <- &ev{target: &Retry{reply.Server}, ch: make(chan error, 1)}
     return 
   }
   // 成功，更新 matchIndex, nextIndex
@@ -777,18 +774,26 @@ func (rf *Raft) killed() bool {
 
 
 func (rf *Raft) CommitLoop() {
-  rf.lk.Lock()
+  //rf.lk.Lock()
   for rf.killed() == false {
     for idx := rf.lastApplied + 1; idx <= rf.GetCommitIndex(); idx ++ {
       rf.Commit(idx)
     }
-    //time.Sleep(10 * time.Millisecond)
-    rf.cond.Wait()
+    time.Sleep(50 * time.Millisecond)
+    //rf.cond.Wait()
+  }
+}
+
+func (rf *Raft) DebugLoop() {
+  for rf.killed() == false {
+    rf.PrintState("DEBUG", true)
+    time.Sleep(100 * time.Millisecond)
   }
 }
 
 func (rf *Raft) Loop() {
   go rf.CommitLoop()
+  go rf.DebugLoop()
 	for rf.killed() == false {
 		if rf.killed() {
       rf.Wg.Wait()
@@ -840,6 +845,7 @@ func Make(peers []*labrpc.ClientEnd, me int,
 	rf.logs = append(rf.logs, Log{0, 0, void})
   rf.lastLogIndex = 0
 	// initialize from state persisted before a crash
+  rf.state = Follower
 	rf.readPersist(persister.ReadRaftState())
   rf.PrintState("Reboot", true)
   rf.ResetTime(RandTime())
@@ -1013,10 +1019,7 @@ func (rf *Raft) LSetLastInfo(lastLogIndex, lastLogTerm int) {
 }
 
 func (rf *Raft) SetMatchIndex(server, newMatchIndex int) {
-  if newMatchIndex < rf.matchIndex[server] {
-    fmt.Printf("wrong matchIndex: %d -> %d\n", rf.matchIndex[server], newMatchIndex)
-    return
-  }
+  dbg("[INFO] Set S%d.matchIndex[S%d]=%d -> %d", rf.me,server,rf.matchIndex[server], newMatchIndex)
   rf.matchIndex[server] = newMatchIndex
 }
 
@@ -1027,10 +1030,7 @@ func (rf *Raft) LSetMatchIndex(server, newMatchIndex int) {
 }
 
 func (rf *Raft) SetNextIndex(server, newNextIndex int) {
-  //dbg("[INFO] Set S%d.nextIndex[S%d]=%d\n", rf.me, server, valIndex)
-  if newNextIndex > rf.nextIndex[server] {
-    return 
-  }
+  dbg("[INFO] Set S%d.nextIndex[S%d]=%d -> %d", rf.me, server, rf.nextIndex[server], newNextIndex) 
   rf.nextIndex[server] = newNextIndex
 }
 func (rf *Raft) LSetNextIndex(server, newNextIndex int) {
