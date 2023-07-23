@@ -26,13 +26,13 @@ import (
 	"fmt"
 	"log"
 
-	//	"bytes"
+  "bytes"
 	"math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	//	"6.5840/labgob
+  "6.5840/labgob"
 	"6.5840/labrpc"
 )
 
@@ -179,14 +179,13 @@ func (rf *Raft) GetState() (int, bool) {
 // after you've implemented snapshots, pass the current snapshot
 // (or nil if there's not yet a snapshot).
 func (rf *Raft) persist() {
-	// Your code here (2C).
-	// Example:
-	// w := new(bytes.Buffer)
-	// e := labgob.NewEncoder(w)
-	// e.Encode(rf.xxx)
-	// e.Encode(rf.yyy)
-	// raftstate := w.Bytes()
-	// rf.persister.Save(raftstate, nil)
+  w := new(bytes.Buffer)
+  e := labgob.NewEncoder(w)
+  e.Encode(rf.currentTerm)
+  e.Encode(rf.votedFor)
+  e.Encode(rf.logs)
+  raftState := w.Bytes()
+  rf.persister.Save(raftState, nil)
 }
 
 // restore previously persisted state.
@@ -194,19 +193,21 @@ func (rf *Raft) readPersist(data []byte) {
 	if data == nil || len(data) < 1 { // bootstrap without any state?
 		return
 	}
-	// Your code here (2C).
-	// Example:
-	// r := bytes.NewBuffer(data)
-	// d := labgob.NewDecoder(r)
-	// var xxx
-	// var yyy
-	// if d.Decode(&xxx) != nil ||
-	//    d.Decode(&yyy) != nil {
-	//   error...
-	// } else {
-	//   rf.xxx = xxx
-	//   rf.yyy = yyy
-	// }
+  r := bytes.NewBuffer(data)
+  d := labgob.NewDecoder(r)
+  var currentTerm, votedFor int
+  var logs []Log
+  if d.Decode(&currentTerm) != nil || d.Decode(&votedFor) != nil || d.Decode(&logs) != nil {
+    Dprintf("---[ERROR] readPersist Failed!\n")
+  } else {
+    rf.lock.Lock()
+    rf.currentTerm = currentTerm
+    rf.votedFor = votedFor
+    rf.logs = logs
+    rf.lastLogIndex = rf.logs[len(logs) - 1].Index
+    rf.lastLogTerm = rf.logs[len(logs) - 1].Term
+    rf.lock.Unlock()
+  }
 }
 
 // the service says it has created a snapshot that has
@@ -314,6 +315,7 @@ func (rf *Raft) sendHeartBeat(server int) {
 
 // lock Required before invoke AppendLog
 func (rf *Raft) AppendLog(pLog *Log) bool {
+  defer rf.persist()
   if rf.lastLogIndex == pLog.Index - 1 {
     rf.logs = append(rf.logs, *pLog)
     rf.SetLastInfo(rf.lastLogIndex + 1, pLog.Term)
@@ -365,13 +367,6 @@ func (rf *Raft) ProcessAppendEntriesReply(reply *AppendEntriesReply) {
 
     rf.lock.Lock()
     server := reply.Server
-    /*
-    fmt.Printf("==============\n")
-    fmt.Printf("Reply: %+v\n", reply)
-    fmt.Printf("S%d Entries: %+v\n", rf.me, rf.logs[0:])
-    fmt.Printf("Original nextIndex=%d, ",rf.nextIndex[server])
-    */
-    //originIndex := rf.nextIndex[server]
     if reply.LogLength < rf.nextIndex[server] {
       rf.SetNextIndex(server, reply.LogLength)
     } else if rf.lastLogTerm >= reply.ConflictTerm {
@@ -386,23 +381,7 @@ func (rf *Raft) ProcessAppendEntriesReply(reply *AppendEntriesReply) {
       }
       rf.SetNextIndex(server, idx)
     }
-    /*
-    if rf.nextIndex[server] >= originIndex {
-      rf.SetNextIndex(server, originIndex - 1)
-    }
-    if rf.nextIndex[server] == 0 {
-      rf.SetNextIndex(server, 1)
-    }
-    */
-
-    //rf.UpdateIndexInfo(reply.Server, -1, 0)
-    /*
-    fmt.Printf("Final nextIndex=%d\n",rf.nextIndex[server])
-    fmt.Printf("==============\n")
-    */
     rf.lock.Unlock()
-
-    rf.ch <- &ev{target: &Retry{reply.Server}, ch: make(chan error, 1)}
     return 
   }
   // 成功，更新 matchIndex, nextIndex
@@ -755,9 +734,6 @@ func (rf *Raft) LeaderLoop() {
 				e.returnValue, _ = rf.ProcessRequestVoteRequest(req)
 			case *AppendEntriesReply: // 响应 AppendEntriesReply
 				go rf.ProcessAppendEntriesReply(req)
-      case *Retry:
-        DPrintf("Retry S%d -> S%d\n", rf.me, req.server)
-        go rf.sendAppendEntries(req.server, rf.InitArgs())
 			}
 			e.ch <- err
 		case <-rf.killedCh:
@@ -1007,6 +983,7 @@ func (rf *Raft) SetCurrentTerm(term int) {
   }
   rf.currentTerm = term
   rf.votedFor = -1
+  rf.persist()
 }
 
 func (rf *Raft) LSetCurrentTerm(term int) {
@@ -1018,6 +995,7 @@ func (rf *Raft) LSetCurrentTerm(term int) {
 func (rf *Raft) UpdateCurrentTerm(val int) {
   rf.currentTerm += val
   rf.votedFor = -1
+  rf.persist()
 }
 
 func (rf *Raft) LUpdateCurrentTerm(val int) {
@@ -1069,6 +1047,7 @@ func (rf *Raft) LUpdateIndexInfo(server, valIndex, valMatch int) {
 
 func (rf *Raft) SetVotedFor(newVotedFor int) {
   rf.votedFor = newVotedFor
+  rf.persist()
 }
 
 func (rf *Raft) LSetVotedFor(newVotedFor int) {
