@@ -26,7 +26,8 @@ const RaftElectionTimeout = 1000 * time.Millisecond
 
 func TestDBG(t *testing.T) {
   Debug = true
-  TestReliableChurn2C(t)
+  TestBasicAgree2B(t)
+  //TestReliableChurn2C(t)
   //TestUnreliableChurn2C(t)
 }
 
@@ -151,7 +152,6 @@ func TestManyElections2A(t *testing.T) {
 
 func TestBasicAgree2B(t *testing.T) {
   //TestFigure8Unreliable2C(t)
-  Debug = false
 	servers := 3
 	cfg := make_config(t, servers, false, false)
 	defer cfg.cleanup()
@@ -1011,7 +1011,7 @@ func internalChurn(t *testing.T, unreliable bool) {
 
 	stop := int32(0)
 
-	// create concurrent clients
+	// create concurrent clients,  不停地提交随机数，在ch里
 	cfn := func(me int, ch chan []int) {
 		var ret []int
 		ret = nil
@@ -1034,6 +1034,7 @@ func internalChurn(t *testing.T, unreliable bool) {
 					}
 				}
 			}
+      // index the x suppose to be
 			if ok {
 				// maybe leader will commit our value, maybe not.
 				// but don't wait forever.
@@ -1055,6 +1056,7 @@ func internalChurn(t *testing.T, unreliable bool) {
 				time.Sleep(time.Duration(79+me*17) * time.Millisecond)
 			}
 		}
+    // 如果 x 被正确提交， ret 里是x
 		ret = values
 	}
 

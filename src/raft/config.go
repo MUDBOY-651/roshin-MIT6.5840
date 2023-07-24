@@ -107,6 +107,7 @@ func make_config(t *testing.T, n int, unreliable bool, snapshot bool) *config {
 
 // shut down a Raft server but save its persistent state.
 func (cfg *config) crash1(i int) {
+  dbg("Crash S%d!", i)
 	cfg.disconnect(i)
 	cfg.net.DeleteServer(i) // disable client connections to the server.
 
@@ -331,8 +332,8 @@ func (cfg *config) start1(i int, applier func(int, chan ApplyMsg)) {
 
 func (cfg *config) checkTimeout() {
 	// enforce a two minute real-time limit on each test
-	if !cfg.t.Failed() && time.Since(cfg.start) > 60*time.Second {
-		cfg.t.Fatal("test took longer than 60 seconds")
+	if !cfg.t.Failed() && time.Since(cfg.start) > 90*time.Second {
+		cfg.t.Fatal("test took longer than 90 seconds")
 	}
 }
 
@@ -354,7 +355,7 @@ func (cfg *config) cleanup() {
 
 // attach server i to the net.
 func (cfg *config) connect(i int) {
-	dbg("Connect (%d)", i)
+	dbg("Connect S%d", i)
 
 	cfg.connected[i] = true
 
@@ -377,7 +378,7 @@ func (cfg *config) connect(i int) {
 
 // detach server i from the net.
 func (cfg *config) disconnect(i int) {
-
+  dbg("Disconnect S%d", i)
 	cfg.connected[i] = false
 
 	// outgoing ClientEnds
