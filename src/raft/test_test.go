@@ -26,8 +26,9 @@ const RaftElectionTimeout = 1000 * time.Millisecond
 
 func TestDBG(t *testing.T) {
   Debug = true
+  TestFailNoAgree2B(t)
   //TestBasicAgree2B(t)
-  TestSnapshotBasic2D(t)
+  //TestSnapshotBasic2D(t)
   //TestReliableChurn2C(t)
   //TestUnreliableChurn2C(t)
 }
