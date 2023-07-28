@@ -26,9 +26,9 @@ const RaftElectionTimeout = 1000 * time.Millisecond
 
 func TestDBG(t *testing.T) {
   Debug = true
-  TestFailNoAgree2B(t)
+  //TestFailNoAgree2B(t)
   //TestBasicAgree2B(t)
-  //TestSnapshotBasic2D(t)
+  TestSnapshotBasic2D(t)
   //TestReliableChurn2C(t)
   //TestUnreliableChurn2C(t)
 }
@@ -1157,7 +1157,8 @@ func TestUnreliableChurn2C(t *testing.T) {
 const MAXLOGSIZE = 2000
 
 func snapcommon(t *testing.T, name string, disconnect bool, reliable bool, crash bool) {
-	iters := 30
+  //iters := 30
+  iters := 30
 	servers := 3
 	cfg := make_config(t, servers, !reliable, true)
 	defer cfg.cleanup()
@@ -1185,9 +1186,13 @@ func snapcommon(t *testing.T, name string, disconnect bool, reliable bool, crash
 		}
 
 		// perhaps send enough to get a snapshot
-		nn := (SnapShotInterval / 2) + (rand.Int() % SnapShotInterval)
+    num := 1000 * (i + 1)
+    nn := (SnapShotInterval / 2) + (rand.Int() % SnapShotInterval)
+    Dprintf("---[TEST] nn = %d\n", nn)
 		for i := 0; i < nn; i++ {
-			cfg.rafts[sender].Start(rand.Int())
+      cfg.rafts[sender].Start(rand.Int())
+			//cfg.rafts[sender].Start(num)
+      num++
 		}
 
 		// let applier threads catch up with the Start()'s
@@ -1195,7 +1200,9 @@ func snapcommon(t *testing.T, name string, disconnect bool, reliable bool, crash
 			// make sure all followers have caught up, so that
 			// an InstallSnapshot RPC isn't required for
 			// TestSnapshotBasic2D().
-			cfg.one(rand.Int(), servers, true)
+      cfg.one(rand.Int(), servers, true)
+			//cfg.one(num, servers, true)
+      num++
 		} else {
 			cfg.one(rand.Int(), servers-1, true)
 		}

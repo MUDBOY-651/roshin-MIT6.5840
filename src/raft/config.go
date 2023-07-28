@@ -219,6 +219,7 @@ func (cfg *config) applierSnap(i int, applyCh chan ApplyMsg) {
 	}
 
 	for m := range applyCh {
+    dbg("msg=%+v", m)
 		err_msg := ""
 		if m.SnapshotValid {
 			cfg.mu.Lock()
