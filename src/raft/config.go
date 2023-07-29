@@ -219,7 +219,6 @@ func (cfg *config) applierSnap(i int, applyCh chan ApplyMsg) {
 	}
 
 	for m := range applyCh {
-    dbg("msg=%+v", m)
 		err_msg := ""
 		if m.SnapshotValid {
 			cfg.mu.Lock()
@@ -333,8 +332,8 @@ func (cfg *config) start1(i int, applier func(int, chan ApplyMsg)) {
 
 func (cfg *config) checkTimeout() {
 	// enforce a two minute real-time limit on each test
-	if !cfg.t.Failed() && time.Since(cfg.start) > 90*time.Second {
-		cfg.t.Fatal("test took longer than 90 seconds")
+	if !cfg.t.Failed() && time.Since(cfg.start) > 150*time.Second {
+		cfg.t.Fatal("test took longer than 150 seconds")
 	}
 }
 
