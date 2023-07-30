@@ -287,6 +287,7 @@ func (rf *Raft) SetLastLogIndex(index int) {
     index = rf.offset
   }
   rf.lastLogIndex = index
+  rf.persist()
 }
 
 func (rf *Raft) SetLastLogIndexLocked(index int) {
@@ -296,16 +297,19 @@ func (rf *Raft) SetLastLogIndexLocked(index int) {
     index = rf.offset
   }
   rf.lastLogIndex = index
+  rf.persist()
 }
 
 func (rf *Raft) SetLastLogTerm(term int) {
   rf.lastLogTerm = term
+  rf.persist()
 }
 
 func (rf *Raft) SetLastLogTermLocked(term int) {
   rf.lock.Lock()
   defer rf.lock.Unlock()
   rf.lastLogTerm = term
+  rf.persist()
 }
 
 func (rf *Raft) SetSnapshot(newSnapshot []byte) {

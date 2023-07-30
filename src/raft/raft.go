@@ -62,8 +62,6 @@ type Raft struct {
   offsetTerm int
   lastLogIndex int 
   lastLogTerm int
-  applyCond sync.Cond
-  applylk sync.Mutex
   Wg sync.WaitGroup
 }
 
@@ -157,15 +155,14 @@ func (rf *Raft) readPersist(data []byte) {
     rf.snapshot = rf.persister.ReadSnapshot()
     rf.logs = logs
     rf.currentTerm = currentTerm
-    rf.SetCurrentTerm(currentTerm)
-    rf.SetVotedFor(votedFor)
-    rf.SetLastLogIndex(lastLogIndex)
-    rf.SetLastLogTerm(lastLogTerm)
-    rf.SetOffset(offset)
-    rf.SetOffsetTerm(offsetTerm)
+    rf.votedFor = votedFor
+    rf.lastLogIndex = lastLogIndex
+    rf.lastLogTerm = lastLogTerm
+    rf.offset = offset
+    rf.offsetTerm = offsetTerm
     rf.lastApplied = offset
     //rf.SetLastApplied(lastApplied)
-    rf.persist()
+    //rf.persist()
   }
 }
 
@@ -299,7 +296,7 @@ func (rf *Raft) sendInstallSnapshot(server int) bool {
     return true
   }
   rf.lock.Lock()
-  rf.SetNextIndex(server, max(rf.GetNextIndex(server), args.LastIncludedIndex + 1))
+  rf.SetNextIndex(server, args.LastIncludedIndex + 1)
   rf.SetMatchIndex(server, max(rf.GetMatchIndex(server), args.LastIncludedIndex))
   rf.lock.Unlock()
   return true
@@ -391,7 +388,6 @@ func (rf *Raft) ProcessAppendEntriesReply(args *AppendEntriesArgs, reply *Append
       rf.SetNextIndex(server, idx)
     }
     rf.lock.Unlock()
-
     return 
   }
   // 成功，更新 matchIndex, nextIndex
@@ -508,7 +504,7 @@ func (rf *Raft) ProcessAppendEntriesRequest(args *AppendEntriesArgs) (reply *App
   if args.LeaderCommit > commitIndex {
 
     rf.lk.Lock()
-    rf.SetCommitIndex(min(args.LeaderCommit, lastLogIndex))
+    rf.SetCommitIndexLocked(min(args.LeaderCommit, lastLogIndex))
     rf.lk.Unlock()
     rf.cond.Broadcast()
   } 
@@ -525,7 +521,7 @@ func (rf *Raft) AppendLog(pLog *Log) {
   } else {
     if rf.GetLogTerm(pLog.Index) != pLog.Term {
       rf.logs = rf.logs[0: pLog.Index - rf.offset]
-      rf.SetLastLogIndex(rf.GetLogTerm(pLog.Index - 1))
+      rf.SetLastLogIndex(pLog.Index - 1)
       rf.SetLastLogTerm(rf.GetLogTerm(pLog.Index - 1))
       rf.AppendLog(pLog)
     } 
@@ -797,17 +793,16 @@ func (rf *Raft) Commit(log Log) {
 
   rf.msgCh<-newMsg
   rf.lastApplied = log.Index
-  rf.persistLocked()
 
   DPrintf("S%d Submit {Index: %d, Command %v}\n", rf.me, log.Index, log.Command)
   rf.PrintState("AfterSubmit", true)
 }
 
 func (rf *Raft) CommitLoop() {
-  rf.lk.Lock()
+  //rf.lk.Lock()
   for rf.killed() == false {
-    lastApplied := rf.GetLastApplied()
-    commitIndex := rf.GetCommitIndex()
+    lastApplied := rf.GetLastAppliedLocked()
+    commitIndex := rf.GetCommitIndexLocked()
     if lastApplied < commitIndex {
       logs := rf.GetLogSliceLocked(lastApplied + 1, commitIndex + 1)
       DPrintf("---[CommitLoop] logs=%+v\n", logs)
@@ -815,8 +810,8 @@ func (rf *Raft) CommitLoop() {
         rf.Commit(log)
       }
     }
-    //time.Sleep(20 * time.Millisecond)
-    rf.cond.Wait()
+    time.Sleep(10 * time.Millisecond)
+    //rf.cond.Wait()
   }
 }
 
@@ -880,7 +875,6 @@ func Make(peers []*labrpc.ClientEnd, me int,
 		leaderID:    -1,
     applyBuf: make(chan ApplyMsg, 256),
 	}
-  rf.applyCond = *sync.NewCond(&rf.applylk)
   rf.cond = sync.NewCond(&rf.lk)
   rf.snapshot = nil
 

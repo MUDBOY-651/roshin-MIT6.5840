@@ -1,8 +1,8 @@
 #!/bin/bash
 # 设置测试次数
-num_tests=200
+num_tests=6
 # 设置并发进程数
-num_processes=8
+num_processes=6
 # 统计通过的测试次数
 pass_count=0
 
@@ -11,7 +11,7 @@ result_file=$(mktemp)
 
 # 定义一个函数，用于执行单个测试并判断是否通过
 run_test() {
-    output=$(go test --run 2C 2>&1)
+    output=$(go test --run 2D 2>&1)
     if echo "$output" | grep -q "PASS"; then
         echo "Test passed." >> "$result_file"
     else

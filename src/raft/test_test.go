@@ -25,12 +25,13 @@ const DBG = false
 const RaftElectionTimeout = 1000 * time.Millisecond
 
 func TestDBG(t *testing.T) {
-  //Debug = true
   Debug = true
+  //Debug = false
+  TestPersist22C(t)
   //TestInitialElection2A(t)
   //TestFailNoAgree2B(t)
   //TestBasicAgree2B(t)
-  TestSnapshotBasic2D(t)
+  //TestSnapshotBasic2D(t)
   //TestSnapshotInstall2D(t)
   //TestSnapshotInit2D(t)
   //TestSnapshotAllCrash2D(t)
