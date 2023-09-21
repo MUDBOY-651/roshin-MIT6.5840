@@ -3,7 +3,7 @@ package raft
 import (
 	"fmt"
 	"log"
-  "runtime"
+	"runtime"
 )
 
 // Debugging
@@ -27,25 +27,24 @@ func Dprintf(format string, a ...interface{}) (n int, err error) {
 }
 
 func dbg(format string, a ...interface{}) (n int, err error) {
-  if Debug {
+	if Debug {
 		fmt.Printf("-----------")
 		fmt.Printf(format, a...)
 		fmt.Printf("-----------\n")
-  }
-  return 
+	}
+	return
 }
 
-func PrintLockInfo (v interface{}) {
+func PrintLockInfo(v interface{}) {
 	_, _, line, _ := runtime.Caller(1)
-  if Debug {
-    fmt.Printf("[LockInfo] LINE:%d Try Lock\n", line)
-  }
+	if Debug {
+		fmt.Printf("[LockInfo] LINE:%d Try Lock\n", line)
+	}
 }
 
 //const DEBUG_TEST = true
 
 const DEBUG_TEST = false
-
 
 func ImportantInfo(format string, a ...interface{}) {
 	if DEBUG_TEST {
